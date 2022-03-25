@@ -1,0 +1,27 @@
+main: com.cavetale.editor.EditorPlugin
+
+name: Editor
+version: 0.1
+description: Editor GUI for plugin data
+api-version: 1.17
+
+author: StarTux
+website: https://github.com/StarTux/Editor
+
+depend: [Core]
+softdepend: []
+
+commands:
+
+  editor:
+    aliases: []
+    description: Editor Command
+    permission: editor.editor
+    usage: |-
+      /editor
+
+permissions:
+
+  editor.editor:
+    description: Use /editor
+    default: op
