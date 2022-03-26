@@ -18,4 +18,6 @@ public sealed interface MenuItemNode permits FieldNode {
     List<Component> getTooltip();
 
     MenuNode getMenuNode();
+
+    boolean isDeletable();
 }

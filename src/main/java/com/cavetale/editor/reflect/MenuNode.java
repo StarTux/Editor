@@ -16,4 +16,16 @@ public sealed interface MenuNode permits ObjectNode, MapNode, ListNode, SetNode 
         }
         return null;
     }
+
+    default List<Object> cut(List<Integer> selection) {
+        throw new IllegalStateException("Cut not implemented");
+    }
+
+    default List<Object> copy(List<Integer> selection) {
+        throw new IllegalStateException("Copy not implemented");
+    }
+
+    default int paste(List<Object> clipboard, List<Integer> selection) {
+        throw new IllegalStateException("Paste not implemented");
+    }
 }

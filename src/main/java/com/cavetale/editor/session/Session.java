@@ -3,6 +3,7 @@ package com.cavetale.editor.session;
 import com.cavetale.core.editor.EditMenuAdapter;
 import com.cavetale.core.editor.EditMenuButton;
 import com.cavetale.core.font.GuiOverlay;
+import com.cavetale.core.font.Unicode;
 import com.cavetale.editor.EditContext;
 import com.cavetale.editor.gui.Gui;
 import com.cavetale.editor.reflect.MenuItemNode;
@@ -12,14 +13,18 @@ import com.cavetale.editor.reflect.ObjectNode;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.util.Items;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import static net.kyori.adventure.text.Component.join;
@@ -42,6 +47,8 @@ public final class Session {
     private final List<PathNode> path = new ArrayList<>();
     private final PathNode rootPath = new PathNode("", 0);
     protected Consumer<String> chatCallback = null;
+    private final List<Integer> selection = new ArrayList<>();
+    private final List<Object> clipboard = new ArrayList<>();
 
     public Session setup(final Plugin thePlugin, final Object theRootObject, final EditContext theEditContext) {
         this.owningPlugin = thePlugin;
@@ -49,6 +56,7 @@ public final class Session {
         this.editContext = theEditContext;
         this.path.clear();
         this.rootPath.page = 0;
+        this.selection.clear();
         return this;
     }
 
@@ -92,7 +100,7 @@ public final class Session {
         MenuNode menuNode = findPath();
         final PathNode pathNode = path.isEmpty() ? rootPath : path.get(path.size() - 1);
         List<? extends MenuItemNode> children = menuNode.getChildren();
-        final int rows = Math.min(5, 1 + (children.size() - 1) / 9);
+        final int rows = 5;
         final int inventorySize = rows * 9 + 9;
         final int pageSize = rows * 9;
         final int pageCount = (children.size() - 1) / pageSize + 1;
@@ -103,12 +111,10 @@ public final class Session {
                 text("Editor ", BLUE),
                 text(getPathString(), WHITE),
             });
-        Gui gui = new Gui(owningPlugin)
-            .size(inventorySize)
-            .title(GuiOverlay.BLANK.builder(inventorySize, DARK_GRAY)
-                   .title(title)
-                   .layer(GuiOverlay.TOP_BAR, BLACK)
-                   .build());
+        Gui gui = new Gui(owningPlugin).size(inventorySize);
+        GuiOverlay.Builder titleBuilder = GuiOverlay.BLANK.builder(inventorySize, DARK_GRAY)
+            .title(title)
+            .layer(GuiOverlay.TOP_BAR, BLACK);
         if (pageIndex > 0) {
             gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
                     pathNode.page -= 1;
@@ -124,7 +130,9 @@ public final class Session {
                 });
         }
         Iterator<Integer> iter = List.of(4, 5, 3, 6, 2, 7, 1).iterator();
-        gui.setItem(iter.next(), Items.text(Mytems.FLOPPY_DISK.createItemStack(), List.of(text("SAVE", GREEN))), click -> {
+        ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
+        diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
+        gui.setItem(iter.next(), Items.text(diskItem, List.of(text("SAVE", GREEN))), click -> {
                 if (click.isLeftClick()) {
                     try {
                         editContext.save();
@@ -136,18 +144,71 @@ public final class Session {
                     }
                 }
             });
-        gui.setItem(iter.next(), Items.text(Mytems.REDO.createItemStack(), List.of(text("RELOAD", RED))), click -> {
-                if (click.isLeftClick()) {
-                    try {
-                        editContext.reload();
-                        player.sendMessage(text("Reloaded!", GREEN));
-                        click(player);
-                    } catch (RuntimeException re) {
-                        player.sendMessage(text("Error reloading: " + re.getMessage(), RED));
-                        fail(player);
+        if (!selection.isEmpty()) {
+            gui.setItem(iter.next(), Items.text(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN))), click -> {
+                    if (click.isLeftClick()) {
+                        List<Object> newClipboard;
+                        try {
+                            newClipboard = menuNode.copy(selection);
+                        } catch (RuntimeException re) {
+                            player.sendMessage(text("Copy failed: " + re.getMessage(), RED));
+                            fail(player);
+                            return;
+                        }
+                        if (newClipboard != null && !newClipboard.isEmpty()) {
+                            this.clipboard.clear();
+                            this.clipboard.addAll(newClipboard);
+                            player.sendMessage(text("Copy " + clipboard.size() + " objects", GREEN));
+                            click(player);
+                        } else {
+                            fail(player);
+                        }
                     }
-                }
-            });
+                });
+        }
+        if (!selection.isEmpty()) {
+            gui.setItem(iter.next(), Items.text(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW))), click -> {
+                    if (click.isLeftClick()) {
+                        List<Object> newClipboard;
+                        try {
+                            newClipboard = menuNode.cut(selection);
+                        } catch (RuntimeException re) {
+                            player.sendMessage(text("Cut failed: " + re.getMessage(), RED));
+                            fail(player);
+                            return;
+                        }
+                        if (newClipboard != null && !newClipboard.isEmpty()) {
+                            this.clipboard.clear();
+                            this.clipboard.addAll(newClipboard);
+                            player.sendMessage(text("Cut " + clipboard.size() + " objects", GREEN));
+                            click(player);
+                        } else {
+                            fail(player);
+                        }
+                    }
+                });
+        }
+        if (clipboard != null && !clipboard.isEmpty()) {
+            gui.setItem(iter.next(), Items.text(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE))), click -> {
+                    if (click.isLeftClick()) {
+                        if (clipboard.isEmpty()) {
+                            player.sendMessage(text("Clipboard is empty!", RED));
+                            fail(player);
+                            return;
+                        }
+                        int count = 0;
+                        try {
+                            count = menuNode.paste(clipboard, selection);
+                        } catch (RuntimeException re) {
+                            player.sendMessage(text("Paste failed: " + re.getMessage()));
+                            fail(player);
+                            return;
+                        }
+                        player.sendMessage(text("Pasted " + count + " objects"));
+                        click(player);
+                    }
+                });
+        }
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
             for (EditMenuButton button : adapter.getEditMenuButtons()) {
                 if (!iter.hasNext()) break;
@@ -167,6 +228,7 @@ public final class Session {
                 if (click.isLeftClick()) {
                     if (!path.isEmpty()) {
                         path.remove(path.size() - 1);
+                        selection.clear();
                         open(player);
                         click(player);
                     } else {
@@ -178,18 +240,56 @@ public final class Session {
             int childIndex = pageSize * pageIndex + i;
             if (childIndex >= children.size()) break;
             int guiIndex = 9 + i;
+            if (selection.contains(childIndex)) {
+                titleBuilder.highlightSlot(guiIndex, GOLD);
+            }
             MenuItemNode node = children.get(childIndex);
-            ItemStack icon = Items.text(node.getIcon(), node.getTooltip());
+            NodeType nodeType = node.getNodeType();
+            List<Component> tooltip = new ArrayList<>();
+            tooltip.addAll(node.getTooltip());
+            if (nodeType.isMenu()) {
+                tooltip.add(join(separator(space()),
+                                 text(Unicode.tiny("left"), GREEN),
+                                 text("Open this menu", GRAY)));
+            }
+            if (nodeType.isPrimitive()) {
+                if (nodeType == NodeType.BOOLEAN) {
+                    tooltip.add(join(separator(space()),
+                                     text(Unicode.tiny("right"), GREEN),
+                                     text("Toggle true/false", GRAY)));
+                } else {
+                    tooltip.add(join(separator(space()),
+                                     text(Unicode.tiny("right"), GREEN),
+                                     text("Set this value", GRAY)));
+                }
+                if (node.isDeletable()) {
+                    tooltip.add(join(separator(space()),
+                                     text(Unicode.tiny("drop"), GREEN),
+                                     text("Delete this value", GRAY)));
+                }
+            }
+            tooltip.add(join(separator(space()),
+                             text(Unicode.tiny("shift-left"), GREEN),
+                             text("(Un)select", GRAY)));
+            ItemStack icon = Items.text(node.getIcon(), tooltip);
             gui.setItem(guiIndex, icon, click -> {
-                    if (click.isLeftClick()) {
-                        NodeType nodeType = node.getNodeType();
+                    if (click.isLeftClick() && click.isShiftClick()) {
+                        if (selection.contains(childIndex)) {
+                            selection.removeAll(List.of(childIndex));
+                            Collections.sort(selection);
+                        } else {
+                            selection.add(childIndex);
+                        }
+                        click(player);
+                        open(player);
+                    } else if (click.isLeftClick()) {
                         if (nodeType.isMenu()) {
                             path.add(new PathNode(node.getKey(), 0));
+                            selection.clear();
                             open(player);
                             click(player);
                         }
                     } else if (click.isRightClick()) {
-                        NodeType nodeType = node.getNodeType();
                         if (nodeType == NodeType.BOOLEAN) {
                             Object oldValue = node.getValue();
                             boolean newValue = oldValue == Boolean.TRUE ? false : true;
@@ -225,10 +325,19 @@ public final class Session {
                             player.closeInventory();
                             click(player);
                         }
+                    } else if (click.getClick() == ClickType.DROP) {
+                        if (!node.isDeletable()) {
+                            fail(player);
+                        } else {
+                            node.setValue(null);
+                            click(player);
+                            open(player);
+                        }
                     }
                 });
         }
         chatCallback = null;
+        gui.title(titleBuilder.build());
         gui.open(player);
         return gui;
     }

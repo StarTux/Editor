@@ -116,16 +116,24 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public List<Component> getTooltip() {
-        String value;
+        Component value;
         if (nodeType.category == NodeType.Category.PRIMITIVE) {
-            value = getValue().toString();
+            Object obj = getValue();
+            value = obj != null
+                ? text(obj.toString(), WHITE)
+                : text("null", DARK_PURPLE, ITALIC);
         } else {
             Object obj = getValue();
             value = obj != null
-                ? obj.getClass().getSimpleName()
-                : "null";
+                ? text(obj.getClass().getSimpleName(), WHITE)
+                : text("null", DARK_PURPLE, ITALIC);
         }
-        return List.of(join(noSeparators(), text(getKey(), GRAY), text(": ", DARK_GRAY), text(value, WHITE)),
+        return List.of(join(noSeparators(), text(getKey(), GRAY), text(": ", DARK_GRAY), value),
                        text(nodeType.name().toLowerCase(), DARK_GRAY, ITALIC));
+    }
+
+    @Override
+    public boolean isDeletable() {
+        return !field.getType().isPrimitive();
     }
 }
