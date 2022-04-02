@@ -39,4 +39,50 @@ public final class ObjectNode implements MenuNode {
             children.add(new FieldNode(object, field));
         }
     }
+
+    private List<Object> cutCopy(List<Integer> selection, boolean doRemove) {
+        List<FieldNode> nodes = getChildren();
+        for (int sel : selection) {
+            if (sel < 0 || sel >= nodes.size()) {
+                throw new MenuException("Selection out of bounds!");
+            }
+            FieldNode node = nodes.get(sel);
+            if (doRemove && !node.isDeletable()) {
+                throw new MenuException("Cannot cut " + node.getKey());
+            }
+        }
+        List<Object> result = new ArrayList<>();
+        for (int sel : selection) {
+            FieldNode node = nodes.get(sel);
+            result.add(node.getValue());
+            node.setValue(null);
+        }
+        return result;
+    }
+
+    @Override
+    public List<Object> cut(List<Integer> selection) {
+        return cutCopy(selection, true);
+    }
+
+    @Override
+    public List<Object> copy(List<Integer> selection) {
+        return cutCopy(selection, false);
+    }
+
+    @Override
+    public int paste(List<Object> clipboard, List<Integer> selection) {
+        if (clipboard.size() != selection.size()) {
+            throw new MenuException("Clipboard size does not equal selection size");
+        }
+        int size = clipboard.size();
+        for (int i = 0; i < size; i += 1) {
+            Object it = clipboard.get(i);
+            FieldNode node = getChildren().get(i);
+            if (!node.canHold(it)) {
+                throw new MenuException("Incompatible clipboard types!");
+            }
+        }
+        return 0;
+    }
 }

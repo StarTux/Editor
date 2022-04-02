@@ -6,6 +6,7 @@ import com.cavetale.core.font.GuiOverlay;
 import com.cavetale.core.font.Unicode;
 import com.cavetale.editor.EditContext;
 import com.cavetale.editor.gui.Gui;
+import com.cavetale.editor.reflect.MenuException;
 import com.cavetale.editor.reflect.MenuItemNode;
 import com.cavetale.editor.reflect.MenuNode;
 import com.cavetale.editor.reflect.NodeType;
@@ -138,8 +139,8 @@ public final class Session {
                         editContext.save();
                         player.sendMessage(text("Saved to disk!", GREEN));
                         click(player);
-                    } catch (RuntimeException re) {
-                        player.sendMessage(text("Error saving: " + re.getMessage(), RED));
+                    } catch (MenuException me) {
+                        player.sendMessage(text("Error saving: " + me.getMessage(), RED));
                         fail(player);
                     }
                 }
@@ -150,8 +151,8 @@ public final class Session {
                         List<Object> newClipboard;
                         try {
                             newClipboard = menuNode.copy(selection);
-                        } catch (RuntimeException re) {
-                            player.sendMessage(text("Copy failed: " + re.getMessage(), RED));
+                        } catch (MenuException me) {
+                            player.sendMessage(text("Copy failed: " + me.getMessage(), RED));
                             fail(player);
                             return;
                         }
@@ -172,8 +173,8 @@ public final class Session {
                         List<Object> newClipboard;
                         try {
                             newClipboard = menuNode.cut(selection);
-                        } catch (RuntimeException re) {
-                            player.sendMessage(text("Cut failed: " + re.getMessage(), RED));
+                        } catch (MenuException me) {
+                            player.sendMessage(text("Cut failed: " + me.getMessage(), RED));
                             fail(player);
                             return;
                         }
@@ -199,8 +200,8 @@ public final class Session {
                         int count = 0;
                         try {
                             count = menuNode.paste(clipboard, selection);
-                        } catch (RuntimeException re) {
-                            player.sendMessage(text("Paste failed: " + re.getMessage()));
+                        } catch (MenuException me) {
+                            player.sendMessage(text("Paste failed: " + me.getMessage()));
                             fail(player);
                             return;
                         }
@@ -214,9 +215,9 @@ public final class Session {
                 if (!iter.hasNext()) break;
                 gui.setItem(iter.next(), Items.text(button.getMenuIcon(), button.getTooltip()), click -> {
                         try {
-                            button.onClick(player, click);
-                        } catch (RuntimeException re) {
-                            player.sendMessage(text("Error: " + re.getMessage()));
+                            button.onClick(player, click.getClick());
+                        } catch (MenuException me) {
+                            player.sendMessage(text("Error: " + me.getMessage()));
                             return;
                         }
                         open(player);

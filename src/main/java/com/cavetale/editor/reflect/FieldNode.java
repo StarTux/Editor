@@ -26,7 +26,7 @@ public final class FieldNode implements MenuItemNode {
         this.parent = parent;
         this.field = field;
         Class<?> fieldType = field.getType();
-        this.nodeType = NodeType.of(field.getType());
+        this.nodeType = NodeType.of(fieldType);
     }
 
     public String getKey() {
@@ -135,5 +135,37 @@ public final class FieldNode implements MenuItemNode {
     @Override
     public boolean isDeletable() {
         return !field.getType().isPrimitive();
+    }
+
+    @Override
+    public boolean canHold(Object object) {
+        if (object == null) return false;
+        if (nodeType.isPrimitive()) {
+            NodeType objectType = NodeType.of(object.getClass());
+            return nodeType == objectType;
+        }
+        switch (nodeType) {
+        case OBJECT: return field.getClass().isInstance(object);
+        case MAP: {
+            if (!(object instanceof Map)) return false;
+            @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) object;
+            List<Class<?>> genericTypes = getGenericTypes();
+            for (Map.Entry<Object, Object> entry : map.entrySet()) {
+                if (!genericTypes.get(0).isInstance(entry.getKey())) return false;
+                if (!genericTypes.get(1).isInstance(entry.getValue())) return false;
+            }
+            return true;
+        }
+        case LIST: {
+            if (!(object instanceof List)) return false;
+            @SuppressWarnings("unchecked") List<Object> list = (List<Object>) object;
+            List<Class<?>> genericTypes = getGenericTypes();
+            for (Object it : list) {
+                if (!genericTypes.get(0).isInstance(it)) return false;
+            }
+            return true;
+        }
+        default: throw new IllegalStateException("nodeType=" + nodeType);
+        }
     }
 }

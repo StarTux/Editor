@@ -20,4 +20,6 @@ public sealed interface MenuItemNode permits FieldNode {
     MenuNode getMenuNode();
 
     boolean isDeletable();
+
+    boolean canHold(Object object);
 }

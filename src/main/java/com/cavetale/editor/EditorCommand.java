@@ -8,7 +8,7 @@ import com.cavetale.mytems.Mytems;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import static net.kyori.adventure.text.Component.text;
 
@@ -72,7 +72,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
                             return List.of(text("COPY"));
                         }
                         @Override
-                        public void onClick(Player player, InventoryClickEvent event) {
+                        public void onClick(Player player, ClickType click) {
                             player.sendMessage("HEY");
                             iter += 1;
                         }
