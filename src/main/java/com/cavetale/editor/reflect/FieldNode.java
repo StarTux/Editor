@@ -1,6 +1,5 @@
 package com.cavetale.editor.reflect;
 
-import com.cavetale.mytems.Mytems;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
@@ -9,11 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.Getter;
-import net.kyori.adventure.text.Component;
-import org.bukkit.inventory.ItemStack;
-import static net.kyori.adventure.text.Component.join;
-import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.*;
 
@@ -29,10 +23,27 @@ public final class FieldNode implements MenuItemNode {
         this.nodeType = NodeType.of(fieldType);
     }
 
+    @Override
     public String getKey() {
         return field.getName();
     }
 
+    @Override
+    public Object getValue() {
+        field.setAccessible(true);
+        try {
+            return field.get(parent);
+        } catch (IllegalAccessException iae) {
+            throw new IllegalStateException(iae);
+        }
+    }
+
+    @Override
+    public boolean canSetValue() {
+        return true;
+    }
+
+    @Override
     public void setValue(Object value) {
         field.setAccessible(true);
         try {
@@ -42,13 +53,14 @@ public final class FieldNode implements MenuItemNode {
         }
     }
 
-    public Object getValue() {
-        field.setAccessible(true);
-        try {
-            return field.get(parent);
-        } catch (IllegalAccessException iae) {
-            throw new IllegalStateException(iae);
-        }
+    @Override
+    public boolean isDeletable() {
+        return !field.getType().isPrimitive();
+    }
+
+    @Override
+    public void delete() {
+        setValue(null);
     }
 
     private List<Class<?>> getGenericTypes() {
@@ -63,6 +75,7 @@ public final class FieldNode implements MenuItemNode {
         return result;
     }
 
+    @Override
     public MenuNode getMenuNode() {
         switch (nodeType) {
         case MAP: {
@@ -71,8 +84,9 @@ public final class FieldNode implements MenuItemNode {
                 throw new IllegalStateException("Map<" + genericTypes.size() + ">");
             }
             Object value = getValue();
-            if (!(value instanceof Map map)) return null;
-            return new MapNode((Map<?, ?>) map, genericTypes.get(0), genericTypes.get(1));
+            if (!(value instanceof Map)) return null;
+            @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) value;
+            return new MapNode(map, genericTypes.get(0), genericTypes.get(1));
         }
         case LIST: {
             List<Class<?>> genericTypes = getGenericTypes();
@@ -80,8 +94,9 @@ public final class FieldNode implements MenuItemNode {
                 throw new IllegalStateException("List<" + genericTypes.size() + ">");
             }
             Object value = getValue();
-            if (!(value instanceof List list)) return null;
-            return new ListNode((List<?>) list, genericTypes.get(0));
+            if (!(value instanceof List)) return null;
+            @SuppressWarnings("unchecked") List<Object> list = (List<Object>) value;
+            return new ListNode(list, genericTypes.get(0));
         }
         case SET: {
             List<Class<?>> genericTypes = getGenericTypes();
@@ -89,8 +104,9 @@ public final class FieldNode implements MenuItemNode {
                 throw new IllegalStateException("Set<" + genericTypes.size() + ">");
             }
             Object value = getValue();
-            if (!(value instanceof Set set)) return null;
-            return new SetNode((Set<?>) set, genericTypes.get(0));
+            if (!(value instanceof Set)) return null;
+            @SuppressWarnings("unchecked") Set<Object> set = (Set<Object>) value;
+            return new SetNode(set, genericTypes.get(0));
         }
         case OBJECT: {
             Object value = getValue();
@@ -102,44 +118,8 @@ public final class FieldNode implements MenuItemNode {
     }
 
     @Override
-    public ItemStack getIcon() {
-        switch (nodeType) {
-        case BOOLEAN: {
-            return getValue() == Boolean.TRUE
-                ? Mytems.ON.createItemStack()
-                : Mytems.OFF.createItemStack();
-        }
-        default:
-            return nodeType.mytems.createItemStack();
-        }
-    }
-
-    @Override
-    public List<Component> getTooltip() {
-        Component value;
-        if (nodeType.category == NodeType.Category.PRIMITIVE) {
-            Object obj = getValue();
-            value = obj != null
-                ? text(obj.toString(), WHITE)
-                : text("null", DARK_PURPLE, ITALIC);
-        } else {
-            Object obj = getValue();
-            value = obj != null
-                ? text(obj.getClass().getSimpleName(), WHITE)
-                : text("null", DARK_PURPLE, ITALIC);
-        }
-        return List.of(join(noSeparators(), text(getKey(), GRAY), text(": ", DARK_GRAY), value),
-                       text(nodeType.name().toLowerCase(), DARK_GRAY, ITALIC));
-    }
-
-    @Override
-    public boolean isDeletable() {
-        return !field.getType().isPrimitive();
-    }
-
-    @Override
     public boolean canHold(Object object) {
-        if (object == null) return false;
+        if (object == null) return isDeletable();
         if (nodeType.isPrimitive()) {
             NodeType objectType = NodeType.of(object.getClass());
             return nodeType == objectType;

@@ -41,28 +41,13 @@ public final class ObjectNode implements MenuNode {
     }
 
     private List<Object> cutCopy(List<Integer> selection, boolean doRemove) {
-        List<FieldNode> nodes = getChildren();
+        List<Object> result = new ArrayList<>(selection.size());
         for (int sel : selection) {
-            if (sel < 0 || sel >= nodes.size()) {
-                throw new MenuException("Selection out of bounds!");
-            }
-            FieldNode node = nodes.get(sel);
-            if (doRemove && !node.isDeletable()) {
-                throw new MenuException("Cannot cut " + node.getKey());
-            }
-        }
-        List<Object> result = new ArrayList<>();
-        for (int sel : selection) {
-            FieldNode node = nodes.get(sel);
+            FieldNode node = getChildren().get(sel);
             result.add(node.getValue());
-            node.setValue(null);
+            if (doRemove) node.delete();
         }
         return result;
-    }
-
-    @Override
-    public List<Object> cut(List<Integer> selection) {
-        return cutCopy(selection, true);
     }
 
     @Override
@@ -71,18 +56,37 @@ public final class ObjectNode implements MenuNode {
     }
 
     @Override
-    public int paste(List<Object> clipboard, List<Integer> selection) {
-        if (clipboard.size() != selection.size()) {
-            throw new MenuException("Clipboard size does not equal selection size");
+    public boolean canCut(List<Integer> selection) {
+        for (int it : selection) {
+            if (!getChildren().get(it).isDeletable()) return false;
         }
+        return true;
+    }
+
+    @Override
+    public List<Object> cut(List<Integer> selection) {
+        return cutCopy(selection, true);
+    }
+
+    @Override
+    public boolean canPaste(List<Object> clipboard, List<Integer> selection) {
+        if (clipboard.size() != selection.size()) return false;
         int size = clipboard.size();
         for (int i = 0; i < size; i += 1) {
             Object it = clipboard.get(i);
             FieldNode node = getChildren().get(i);
-            if (!node.canHold(it)) {
-                throw new MenuException("Incompatible clipboard types!");
-            }
+            if (!node.canSetValue() || !node.canHold(it)) return false;
         }
-        return 0;
+        return true;
+    }
+
+    @Override
+    public void paste(List<Object> clipboard, List<Integer> selection) {
+        int size = clipboard.size();
+        for (int i = 0; i < size; i += 1) {
+            Object it = clipboard.get(i);
+            FieldNode node = getChildren().get(i);
+            node.setValue(it);
+        }
     }
 }

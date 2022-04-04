@@ -17,15 +17,13 @@ public sealed interface MenuNode permits ObjectNode, MapNode, ListNode, SetNode 
         return null;
     }
 
-    default List<Object> cut(List<Integer> selection) {
-        throw new MenuException("Cut not implemented");
-    }
+    List<Object> copy(List<Integer> selection);
 
-    default List<Object> copy(List<Integer> selection) {
-        throw new MenuException("Copy not implemented");
-    }
+    boolean canCut(List<Integer> selection);
 
-    default int paste(List<Object> clipboard, List<Integer> selection) {
-        throw new MenuException("Paste not implemented");
-    }
+    List<Object> cut(List<Integer> selection);
+
+    boolean canPaste(List<Object> clipboard, List<Integer> selection);
+
+    void paste(List<Object> clipboard, List<Integer> selection);
 }

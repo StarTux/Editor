@@ -159,7 +159,8 @@ public final class Session {
                         if (newClipboard != null && !newClipboard.isEmpty()) {
                             this.clipboard.clear();
                             this.clipboard.addAll(newClipboard);
-                            player.sendMessage(text("Copy " + clipboard.size() + " objects", GREEN));
+                            player.sendMessage(text("Copied " + clipboard.size() + " objects", GREEN));
+                            open(player);
                             click(player);
                         } else {
                             fail(player);
@@ -167,7 +168,7 @@ public final class Session {
                     }
                 });
         }
-        if (!selection.isEmpty()) {
+        if (!selection.isEmpty() && menuNode.canCut(selection)) {
             gui.setItem(iter.next(), Items.text(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW))), click -> {
                     if (click.isLeftClick()) {
                         List<Object> newClipboard;
@@ -182,6 +183,7 @@ public final class Session {
                             this.clipboard.clear();
                             this.clipboard.addAll(newClipboard);
                             player.sendMessage(text("Cut " + clipboard.size() + " objects", GREEN));
+                            open(player);
                             click(player);
                         } else {
                             fail(player);
@@ -189,7 +191,7 @@ public final class Session {
                     }
                 });
         }
-        if (clipboard != null && !clipboard.isEmpty()) {
+        if (!clipboard.isEmpty() && menuNode.canPaste(clipboard, selection)) {
             gui.setItem(iter.next(), Items.text(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE))), click -> {
                     if (click.isLeftClick()) {
                         if (clipboard.isEmpty()) {
@@ -197,15 +199,15 @@ public final class Session {
                             fail(player);
                             return;
                         }
-                        int count = 0;
                         try {
-                            count = menuNode.paste(clipboard, selection);
+                            menuNode.paste(clipboard, selection);
                         } catch (MenuException me) {
                             player.sendMessage(text("Paste failed: " + me.getMessage()));
                             fail(player);
                             return;
                         }
-                        player.sendMessage(text("Pasted " + count + " objects"));
+                        player.sendMessage(text("Pasted " + selection.size() + " objects"));
+                        open(player);
                         click(player);
                     }
                 });
@@ -253,7 +255,7 @@ public final class Session {
                                  text(Unicode.tiny("left"), GREEN),
                                  text("Open this menu", GRAY)));
             }
-            if (nodeType.isPrimitive()) {
+            if (node.canSetValue() && nodeType.isPrimitive()) {
                 if (nodeType == NodeType.BOOLEAN) {
                     tooltip.add(join(separator(space()),
                                      text(Unicode.tiny("right"), GREEN),
@@ -330,7 +332,7 @@ public final class Session {
                         if (!node.isDeletable()) {
                             fail(player);
                         } else {
-                            node.setValue(null);
+                            node.delete();
                             click(player);
                             open(player);
                         }
