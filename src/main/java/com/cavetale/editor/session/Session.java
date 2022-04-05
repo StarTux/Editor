@@ -83,7 +83,9 @@ public final class Session {
         for (PathNode pathIt : pathCopy) {
             MenuItemNode menuItem = menuNode.getChildNode(pathIt.name);
             if (menuItem == null || !menuItem.getNodeType().isMenu()) break;
-            menuNode = menuItem.getMenuNode();
+            MenuNode newMenuNode = menuItem.getMenuNode();
+            if (newMenuNode == null) break;
+            menuNode = newMenuNode;
             path.add(pathIt);
         }
         return menuNode;
@@ -228,17 +230,22 @@ public final class Session {
                 gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createItemStack(), List.of(text("Add item", GREEN))),
                             click -> {
                                 if (click.isLeftClick()) {
-                                    fetchNewValue(player, listNode.getValueType(), null,
-                                                  newValue -> {
-                                                      listNode.getList().add(listIndex, newValue);
-                                                      open(player);
-                                                      click(player);
-                                                  },
-                                                  () -> {
-                                                      open(player);
-                                                      fail(player);
-                                                  });
-                                    click(player);
+                                    try {
+                                        fetchNewValue(player, listNode.getValueType(), null,
+                                                      newValue -> {
+                                                          listNode.getList().add(listIndex, newValue);
+                                                          open(player);
+                                                          click(player);
+                                                      },
+                                                      () -> {
+                                                          open(player);
+                                                          fail(player);
+                                                      });
+                                        click(player);
+                                    } catch (MenuException me) {
+                                        player.sendMessage(text(me.getMessage(), RED));
+                                        fail(player);
+                                    }
                                 }
                             });
             }
@@ -288,7 +295,7 @@ public final class Session {
                                  text("Open this menu", GRAY)));
             }
             final boolean canSetValue;
-            if (node.canSetValue() && variableType.nodeType.isPrimitive()) {
+            if (node.canSetValue()) {
                 if (variableType.nodeType == NodeType.BOOLEAN) {
                     canSetValue = true;
                     tooltip.add(join(separator(space()),
@@ -307,11 +314,13 @@ public final class Session {
                 } else {
                     canSetValue = false;
                 }
-                if (node.isDeletable()) {
-                    tooltip.add(join(separator(space()),
-                                     text(Unicode.tiny("drop"), GREEN),
-                                     text("Delete this value", GRAY)));
-                }
+            } else {
+                canSetValue = false;
+            }
+            if (node.isDeletable() && oldValue != null) {
+                tooltip.add(join(separator(space()),
+                                 text(Unicode.tiny("drop"), GREEN),
+                                 text("Delete this value", GRAY)));
             }
             tooltip.add(join(separator(space()),
                              text(Unicode.tiny("shift-left"), GREEN),
@@ -337,7 +346,7 @@ public final class Session {
                             player.sendMessage(join(separator(newline()), node.getTooltip()));
                             click(player);
                         }
-                    } else if (click.isRightClick()) {
+                    } else if (canSetValue && click.isRightClick()) {
                         if (variableType.nodeType == NodeType.BOOLEAN) {
                             boolean newValue = oldValue == Boolean.TRUE ? false : true;
                             node.setValue(newValue);
@@ -345,20 +354,25 @@ public final class Session {
                             click(player);
                             open(player);
                         } else {
-                            fetchNewValue(player, variableType, oldValue,
-                                          newValue -> {
-                                              if (newValue != null) {
-                                                  node.setValue(newValue);
-                                                  player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
-                                              }
-                                              open(player);
-                                              click(player);
-                                          },
-                                          () -> {
-                                              open(player);
-                                              fail(player);
-                                          });
-                            click(player);
+                            try {
+                                fetchNewValue(player, variableType, oldValue,
+                                              newValue -> {
+                                                  if (newValue != null) {
+                                                      node.setValue(newValue);
+                                                      player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
+                                                  }
+                                                  open(player);
+                                                  click(player);
+                                              },
+                                              () -> {
+                                                  open(player);
+                                                  fail(player);
+                                              });
+                                click(player);
+                            } catch (MenuException me) {
+                                player.sendMessage(text(me.getMessage(), RED));
+                                fail(player);
+                            }
                         }
                     } else if (click.getClick() == ClickType.DROP) {
                         if (!node.isDeletable()) {

@@ -2,6 +2,7 @@ package com.cavetale.editor.menu;
 
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,7 +81,9 @@ public final class VariableType {
         switch (nodeType) {
         case OBJECT:
             try {
-                return objectType.getConstructor().newInstance();
+                Constructor constructor = objectType.getDeclaredConstructor();
+                constructor.setAccessible(true);
+                return constructor.newInstance();
             } catch (NoSuchMethodException nsme) {
                 throw new MenuException("No default constructor found");
             } catch (Exception e) {
