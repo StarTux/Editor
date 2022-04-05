@@ -1,5 +1,10 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
+
 public final class ListItemNode implements MenuItemNode {
     private final ListNode parentNode;
     private final int index;
@@ -10,8 +15,8 @@ public final class ListItemNode implements MenuItemNode {
     }
 
     @Override
-    public NodeType getNodeType() {
-        return parentNode.valueNodeType;
+    public VariableType getVariableType() {
+        return parentNode.valueType;
     }
 
     @Override
@@ -46,7 +51,7 @@ public final class ListItemNode implements MenuItemNode {
 
     @Override
     public MenuNode getMenuNode() {
-        if (parentNode.valueNodeType == NodeType.OBJECT) {
+        if (parentNode.valueType.nodeType == NodeType.OBJECT) {
             Object value = getValue();
             if (value != null) return new ObjectNode(value);
         }

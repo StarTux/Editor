@@ -4,13 +4,9 @@ import com.cavetale.core.command.AbstractCommand;
 import com.cavetale.core.command.CommandWarn;
 import com.cavetale.core.editor.EditMenuAdapter;
 import com.cavetale.core.editor.EditMenuButton;
-import com.cavetale.mytems.Mytems;
+import java.util.ArrayList;
 import java.util.List;
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
-import org.bukkit.inventory.ItemStack;
-import static net.kyori.adventure.text.Component.text;
 
 public final class EditorCommand extends AbstractCommand<EditorPlugin> {
     protected EditorCommand(final EditorPlugin plugin) {
@@ -41,6 +37,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
 
     static class Foo {
         Bar bar = new Bar();
+        List<Integer> bars = new ArrayList<>(List.of(11, 222, 3333, 44444));
         String name = "foo";
         int number = 1;
         double dbl = 1.23;
@@ -61,23 +58,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
 
         @Override
         public List<EditMenuButton> getEditMenuButtons() {
-            return List.of(new EditMenuButton[] {
-                    new EditMenuButton() {
-                        @Override
-                        public ItemStack getMenuIcon() {
-                            return Mytems.MAGNET.createItemStack();
-                        }
-                        @Override
-                        public List<Component> getTooltip() {
-                            return List.of(text("COPY"));
-                        }
-                        @Override
-                        public void onClick(Player player, ClickType click) {
-                            player.sendMessage("HEY");
-                            iter += 1;
-                        }
-                    }
-                });
+            return List.of();
         }
     }
 }

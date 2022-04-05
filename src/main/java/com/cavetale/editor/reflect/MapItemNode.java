@@ -1,8 +1,12 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
+import lombok.RequiredArgsConstructor;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.*;
-import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public final class MapItemNode implements MenuItemNode {
@@ -10,8 +14,8 @@ public final class MapItemNode implements MenuItemNode {
     private final Object key;
 
     @Override
-    public NodeType getNodeType() {
-        return parentNode.valueNodeType;
+    public VariableType getVariableType() {
+        return parentNode.valueType;
     }
 
     @Override
@@ -46,7 +50,7 @@ public final class MapItemNode implements MenuItemNode {
 
     @Override
     public MenuNode getMenuNode() {
-        if (parentNode.valueNodeType == NodeType.OBJECT) {
+        if (parentNode.valueType.nodeType == NodeType.OBJECT) {
             Object value = getValue();
             if (value != null) return new ObjectNode(value);
         }

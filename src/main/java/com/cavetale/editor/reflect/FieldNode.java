@@ -1,5 +1,9 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
@@ -14,13 +18,12 @@ import static net.kyori.adventure.text.format.TextDecoration.*;
 public final class FieldNode implements MenuItemNode {
     protected final Object parent;
     protected final Field field;
-    @Getter protected final NodeType nodeType;
+    @Getter protected final VariableType variableType;
 
     public FieldNode(final Object parent, final Field field) {
         this.parent = parent;
         this.field = field;
-        Class<?> fieldType = field.getType();
-        this.nodeType = NodeType.of(fieldType);
+        this.variableType = VariableType.of(field);
     }
 
     @Override
@@ -77,36 +80,24 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public MenuNode getMenuNode() {
-        switch (nodeType) {
+        switch (variableType.nodeType) {
         case MAP: {
-            List<Class<?>> genericTypes = getGenericTypes();
-            if (genericTypes.size() != 2) {
-                throw new IllegalStateException("Map<" + genericTypes.size() + ">");
-            }
             Object value = getValue();
             if (!(value instanceof Map)) return null;
             @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) value;
-            return new MapNode(map, genericTypes.get(0), genericTypes.get(1));
+            return new MapNode(map, variableType);
         }
         case LIST: {
-            List<Class<?>> genericTypes = getGenericTypes();
-            if (genericTypes.size() != 1) {
-                throw new IllegalStateException("List<" + genericTypes.size() + ">");
-            }
             Object value = getValue();
             if (!(value instanceof List)) return null;
             @SuppressWarnings("unchecked") List<Object> list = (List<Object>) value;
-            return new ListNode(list, genericTypes.get(0));
+            return new ListNode(list, variableType);
         }
         case SET: {
-            List<Class<?>> genericTypes = getGenericTypes();
-            if (genericTypes.size() != 1) {
-                throw new IllegalStateException("Set<" + genericTypes.size() + ">");
-            }
             Object value = getValue();
             if (!(value instanceof Set)) return null;
             @SuppressWarnings("unchecked") Set<Object> set = (Set<Object>) value;
-            return new SetNode(set, genericTypes.get(0));
+            return new SetNode(set, variableType);
         }
         case OBJECT: {
             Object value = getValue();
@@ -120,12 +111,11 @@ public final class FieldNode implements MenuItemNode {
     @Override
     public boolean canHold(Object object) {
         if (object == null) return isDeletable();
-        if (nodeType.isPrimitive()) {
-            NodeType objectType = NodeType.of(object.getClass());
-            return nodeType == objectType;
+        if (variableType.nodeType.isPrimitive()) {
+            return variableType.nodeType == NodeType.of(object.getClass());
         }
-        switch (nodeType) {
-        case OBJECT: return field.getClass().isInstance(object);
+        switch (variableType.nodeType) {
+        case OBJECT: return variableType.objectType.isInstance(object);
         case MAP: {
             if (!(object instanceof Map)) return false;
             @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) object;
@@ -145,7 +135,7 @@ public final class FieldNode implements MenuItemNode {
             }
             return true;
         }
-        default: throw new IllegalStateException("nodeType=" + nodeType);
+        default: throw new IllegalStateException("variableType=" + variableType);
         }
     }
 }

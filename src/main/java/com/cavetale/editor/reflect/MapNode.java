@@ -1,23 +1,27 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.menu.NodeType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public final class MapNode implements MenuNode {
     protected final Map<Object, Object> map;
-    protected final Class<?> keyType;
-    protected final NodeType keyNodeType;
-    protected final Class<?> valueType;
-    protected final NodeType valueNodeType;
+    protected final VariableType variableType;
+    protected final VariableType keyType;
+    protected final VariableType valueType;
     private List<MapItemNode> children;
 
-    public MapNode(final Map<Object, Object> map, final Class<?> keyType, final Class<?> valueType) {
+    public MapNode(final Map<Object, Object> map, final VariableType variableType) {
+        if (variableType.genericTypes.size() != 2) {
+            throw new IllegalStateException(variableType.toString());
+        }
         this.map = map;
-        this.keyType = keyType;
-        this.keyNodeType = NodeType.of(keyType);
-        this.valueType = valueType;
-        this.valueNodeType = NodeType.of(valueType);
+        this.variableType = variableType;
+        this.keyType = variableType.genericTypes.get(0);
+        this.valueType = variableType.genericTypes.get(1);
     }
 
     @Override
@@ -64,11 +68,11 @@ public final class MapNode implements MenuNode {
 
     protected boolean canHoldValue(Object object) {
         if (object == null) return false;
-        if (valueNodeType.isPrimitive()) {
-            return valueNodeType == NodeType.of(object.getClass());
+        if (valueType.nodeType.isPrimitive()) {
+            return valueType.nodeType == NodeType.of(object.getClass());
         }
-        if (valueNodeType == NodeType.OBJECT) {
-            return valueType.isInstance(object);
+        if (valueType.nodeType == NodeType.OBJECT) {
+            return valueType.objectType.isInstance(object);
         }
         return false;
     }

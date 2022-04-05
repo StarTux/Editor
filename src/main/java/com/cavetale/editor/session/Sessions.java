@@ -31,7 +31,7 @@ public final class Sessions implements Listener {
     }
 
     public Session of(Player player) {
-        return sessions.computeIfAbsent(player.getUniqueId(), u -> new Session(this));
+        return sessions.computeIfAbsent(player.getUniqueId(), u -> new Session(this, player.getUniqueId()));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

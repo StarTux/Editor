@@ -1,4 +1,4 @@
-package com.cavetale.editor.reflect;
+package com.cavetale.editor.menu;
 
 /**
  * An exception thrown when an error occurs while the user clicks in

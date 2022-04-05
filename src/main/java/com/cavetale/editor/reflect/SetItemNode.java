@@ -1,5 +1,9 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -8,8 +12,8 @@ public final class SetItemNode implements MenuItemNode {
     private final Object value;
 
     @Override
-    public NodeType getNodeType() {
-        return parentNode.valueNodeType;
+    public VariableType getVariableType() {
+        return parentNode.valueType;
     }
 
     @Override
@@ -44,7 +48,7 @@ public final class SetItemNode implements MenuItemNode {
 
     @Override
     public MenuNode getMenuNode() {
-        if (parentNode.valueNodeType == NodeType.OBJECT) {
+        if (parentNode.valueType.nodeType == NodeType.OBJECT) {
             if (value != null) return new ObjectNode(value);
         }
         return null;

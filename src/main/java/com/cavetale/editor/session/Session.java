@@ -6,10 +6,12 @@ import com.cavetale.core.font.GuiOverlay;
 import com.cavetale.core.font.Unicode;
 import com.cavetale.editor.EditContext;
 import com.cavetale.editor.gui.Gui;
-import com.cavetale.editor.reflect.MenuException;
-import com.cavetale.editor.reflect.MenuItemNode;
-import com.cavetale.editor.reflect.MenuNode;
-import com.cavetale.editor.reflect.NodeType;
+import com.cavetale.editor.menu.MenuException;
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.reflect.ListNode;
 import com.cavetale.editor.reflect.ObjectNode;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.util.Items;
@@ -17,9 +19,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -29,6 +33,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import static net.kyori.adventure.text.Component.join;
+import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.space;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
@@ -42,6 +47,7 @@ import static net.kyori.adventure.text.format.TextDecoration.*;
 @RequiredArgsConstructor
 public final class Session {
     private final Sessions sessions;
+    private final UUID uuid;
     private Plugin owningPlugin;
     private Object rootObject;
     private EditContext editContext;
@@ -59,6 +65,10 @@ public final class Session {
         this.rootPath.page = 0;
         this.selection.clear();
         return this;
+    }
+
+    public Player getPlayer() {
+        return Bukkit.getPlayer(uuid);
     }
 
     /**
@@ -212,6 +222,27 @@ public final class Session {
                     }
                 });
         }
+        if (menuNode instanceof ListNode listNode) {
+            if (iter.hasNext() && selection.size() <= 1) {
+                final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
+                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createItemStack(), List.of(text("Add item", GREEN))),
+                            click -> {
+                                if (click.isLeftClick()) {
+                                    fetchNewValue(player, listNode.getValueType(), null,
+                                                  newValue -> {
+                                                      listNode.getList().add(listIndex, newValue);
+                                                      open(player);
+                                                      click(player);
+                                                  },
+                                                  () -> {
+                                                      open(player);
+                                                      fail(player);
+                                                  });
+                                    click(player);
+                                }
+                            });
+            }
+        }
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
             for (EditMenuButton button : adapter.getEditMenuButtons()) {
                 if (!iter.hasNext()) break;
@@ -246,24 +277,35 @@ public final class Session {
             if (selection.contains(childIndex)) {
                 titleBuilder.highlightSlot(guiIndex, GOLD);
             }
-            MenuItemNode node = children.get(childIndex);
-            NodeType nodeType = node.getNodeType();
+            final MenuItemNode node = children.get(childIndex);
+            final VariableType variableType = node.getVariableType();
+            final Object oldValue = node.getValue();
             List<Component> tooltip = new ArrayList<>();
             tooltip.addAll(node.getTooltip());
-            if (nodeType.isMenu()) {
+            if (variableType.nodeType.isMenu()) {
                 tooltip.add(join(separator(space()),
                                  text(Unicode.tiny("left"), GREEN),
                                  text("Open this menu", GRAY)));
             }
-            if (node.canSetValue() && nodeType.isPrimitive()) {
-                if (nodeType == NodeType.BOOLEAN) {
+            final boolean canSetValue;
+            if (node.canSetValue() && variableType.nodeType.isPrimitive()) {
+                if (variableType.nodeType == NodeType.BOOLEAN) {
+                    canSetValue = true;
                     tooltip.add(join(separator(space()),
                                      text(Unicode.tiny("right"), GREEN),
                                      text("Toggle true/false", GRAY)));
-                } else {
+                } else if (variableType.nodeType.isPrimitive()) {
+                    canSetValue = true;
                     tooltip.add(join(separator(space()),
                                      text(Unicode.tiny("right"), GREEN),
                                      text("Set this value", GRAY)));
+                } else if (variableType.nodeType.isMenu() && oldValue == null) {
+                    canSetValue = true;
+                    tooltip.add(join(separator(space()),
+                                     text(Unicode.tiny("right"), GREEN),
+                                     text("Create this value", GRAY)));
+                } else {
+                    canSetValue = false;
                 }
                 if (node.isDeletable()) {
                     tooltip.add(join(separator(space()),
@@ -279,53 +321,43 @@ public final class Session {
                     if (click.isLeftClick() && click.isShiftClick()) {
                         if (selection.contains(childIndex)) {
                             selection.removeAll(List.of(childIndex));
-                            Collections.sort(selection);
                         } else {
                             selection.add(childIndex);
+                            Collections.sort(selection);
                         }
                         click(player);
                         open(player);
                     } else if (click.isLeftClick()) {
-                        if (nodeType.isMenu()) {
+                        if (variableType.nodeType.isMenu()) {
                             path.add(new PathNode(node.getKey(), 0));
                             selection.clear();
                             open(player);
                             click(player);
+                        } else {
+                            player.sendMessage(join(separator(newline()), node.getTooltip()));
+                            click(player);
                         }
                     } else if (click.isRightClick()) {
-                        if (nodeType == NodeType.BOOLEAN) {
-                            Object oldValue = node.getValue();
+                        if (variableType.nodeType == NodeType.BOOLEAN) {
                             boolean newValue = oldValue == Boolean.TRUE ? false : true;
                             node.setValue(newValue);
                             player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
                             click(player);
                             open(player);
-                        } else if (nodeType.isPrimitive()) {
-                            Object oldValue = node.getValue();
-                            chatCallback = str -> {
-                                Object newValue;
-                                try {
-                                    newValue = nodeType.parseValue(str);
-                                } catch (IllegalArgumentException iae) {
-                                    player.sendMessage(text("Invalid value: " + iae.getMessage(), RED));
-                                    newValue = null;
-                                }
-                                if (newValue != null) {
-                                    node.setValue(newValue);
-                                    player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
-                                }
-                                open(player);
-                            };
-                            player.sendMessage(join(separator(space()), new Component[] {
-                                        text("Type the new value of " + node.getKey() + " in chat", GREEN)
-                                        .insertion("" + oldValue)
-                                        .clickEvent(suggestCommand("" + oldValue))
-                                        .hoverEvent(showText(text("" + oldValue, GRAY))),
-                                        text("[CANCEL]", RED)
-                                       .clickEvent(runCommand("/editor reopen"))
-                                        .hoverEvent(showText(text("/editor reopen", RED))),
-                                    }));
-                            player.closeInventory();
+                        } else {
+                            fetchNewValue(player, variableType, oldValue,
+                                          newValue -> {
+                                              if (newValue != null) {
+                                                  node.setValue(newValue);
+                                                  player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
+                                              }
+                                              open(player);
+                                              click(player);
+                                          },
+                                          () -> {
+                                              open(player);
+                                              fail(player);
+                                          });
                             click(player);
                         }
                     } else if (click.getClick() == ClickType.DROP) {
@@ -333,6 +365,7 @@ public final class Session {
                             fail(player);
                         } else {
                             node.delete();
+                            selection.clear();
                             click(player);
                             open(player);
                         }
@@ -343,5 +376,43 @@ public final class Session {
         gui.title(titleBuilder.build());
         gui.open(player);
         return gui;
+    }
+
+    public void fetchNewValue(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
+        if (variableType.canParseValue()) {
+            fetchNewValueFromChat(player, variableType, oldValue, valueCallback, failCallback);
+        } else if (variableType.canCreateNewInstance()) {
+            valueCallback.accept(variableType.createNewInstance());
+        } else {
+            throw new MenuException("Cannot create new value: " + variableType);
+        }
+    }
+
+    /**
+     * Fetch new value from chat.
+     * VariabelType#canParseValue() must be true!
+     */
+    public void fetchNewValueFromChat(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
+        chatCallback = str -> {
+            final Object newValue;
+            try {
+                newValue = variableType.parseValue(str);
+            } catch (IllegalArgumentException iae) {
+                player.sendMessage(text("Invalid value: " + iae.getMessage(), RED));
+                failCallback.run();
+                return;
+            }
+            valueCallback.accept(newValue);
+        };
+        player.sendMessage(join(separator(space()), new Component[] {
+                    text("Type the new value in chat", GREEN)
+                    .insertion("" + oldValue)
+                    .clickEvent(suggestCommand("" + oldValue))
+                    .hoverEvent(showText(text("" + oldValue, GRAY))),
+                    text("[CANCEL]", RED)
+                    .clickEvent(runCommand("/editor reopen"))
+                    .hoverEvent(showText(text("/editor reopen", RED))),
+                }));
+        player.closeInventory();
     }
 }

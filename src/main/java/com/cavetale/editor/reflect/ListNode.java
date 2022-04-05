@@ -1,18 +1,26 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.Getter;
 
+@Getter
 public final class ListNode implements MenuNode {
     protected final List<Object> list;
-    protected final Class<? extends Object> valueType;
-    protected final NodeType valueNodeType;
+    protected final VariableType variableType;
+    protected final VariableType valueType;
     private List<ListItemNode> children;
 
-    public ListNode(final List<Object> list, final Class<?> valueType) {
+    public ListNode(final List<Object> list, final VariableType variableType) {
+        if (variableType.genericTypes.size() != 1) {
+            throw new IllegalStateException(variableType.toString());
+        }
         this.list = list;
-        this.valueType = valueType;
-        this.valueNodeType = NodeType.of(valueType);
+        this.variableType = variableType;
+        this.valueType = variableType.genericTypes.get(0);
     }
 
     @Override
@@ -38,11 +46,13 @@ public final class ListNode implements MenuNode {
             result.add(node.getValue());
         }
         if (doRemove) {
-            for (int i = selection.size() - 1; i >= 0; i += 1) {
-                list.remove(i);
+            for (int i = selection.size() - 1; i >= 0; i -= 1) {
+                int index = selection.get(i);
+                list.remove(index);
             }
             selection.clear();
         }
+        System.out.println("cutCopy " + list + " " + selection + " " + doRemove + " => " + result);
         return result;
     }
 
@@ -53,6 +63,9 @@ public final class ListNode implements MenuNode {
 
     @Override
     public boolean canCut(List<Integer> selection) {
+        for (int sel : selection) {
+            if (sel >= list.size()) return false;
+        }
         return true;
     }
 
@@ -63,11 +76,11 @@ public final class ListNode implements MenuNode {
 
     protected boolean canHoldValue(Object object) {
         if (object == null) return false;
-        if (valueNodeType.isPrimitive()) {
-            return valueNodeType == NodeType.of(object.getClass());
+        if (valueType.nodeType.isPrimitive()) {
+            return valueType.nodeType == NodeType.of(object.getClass());
         }
-        if (valueNodeType == NodeType.OBJECT) {
-            return valueType.isInstance(object);
+        if (valueType.nodeType == NodeType.OBJECT) {
+            return valueType.objectType.isInstance(object);
         }
         return false;
     }

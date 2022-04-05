@@ -1,19 +1,25 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public final class SetNode implements MenuNode {
     protected final Set<Object> set;
-    protected final Class<?> valueType;
-    protected final NodeType valueNodeType;
+    protected final VariableType variableType;
+    protected final VariableType valueType;
     private List<SetItemNode> children;
 
-    public SetNode(final Set<Object> set, final Class<?> valueType) {
+    public SetNode(final Set<Object> set, final VariableType variableType) {
+        if (variableType.genericTypes.size() != 1) {
+            throw new IllegalStateException(variableType.toString());
+        }
         this.set = set;
-        this.valueType = valueType;
-        this.valueNodeType = NodeType.of(valueType);
+        this.variableType = variableType;
+        this.valueType = variableType.genericTypes.get(0);
     }
 
     @Override
@@ -60,11 +66,11 @@ public final class SetNode implements MenuNode {
 
     protected boolean canHoldValue(Object object) {
         if (object == null) return false;
-        if (valueNodeType.isPrimitive()) {
-            return valueNodeType == NodeType.of(object.getClass());
+        if (valueType.nodeType.isPrimitive()) {
+            return valueType.nodeType == NodeType.of(object.getClass());
         }
-        if (valueNodeType == NodeType.OBJECT) {
-            return valueType.isInstance(object);
+        if (valueType.nodeType == NodeType.OBJECT) {
+            return valueType.objectType.isInstance(object);
         }
         return false;
     }

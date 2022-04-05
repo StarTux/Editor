@@ -1,4 +1,4 @@
-package com.cavetale.editor.reflect;
+package com.cavetale.editor.menu;
 
 import com.cavetale.mytems.Mytems;
 import java.util.List;
@@ -10,8 +10,12 @@ import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.*;
 
-public sealed interface MenuItemNode permits FieldNode, ListItemNode, MapItemNode, SetItemNode {
-    NodeType getNodeType();
+public interface MenuItemNode {
+    VariableType getVariableType();
+
+    default NodeType getNodeType() {
+        return getVariableType().getNodeType();
+    }
 
     String getKey();
 
