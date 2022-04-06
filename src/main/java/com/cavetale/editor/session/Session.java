@@ -12,7 +12,10 @@ import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.NodeType;
 import com.cavetale.editor.menu.VariableType;
 import com.cavetale.editor.reflect.ListNode;
+import com.cavetale.editor.reflect.MapNode;
 import com.cavetale.editor.reflect.ObjectNode;
+import com.cavetale.editor.reflect.SetNode;
+import com.cavetale.editor.util.Icon;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.util.Items;
 import java.util.ArrayList;
@@ -128,7 +131,9 @@ public final class Session {
         GuiOverlay.Builder titleBuilder = GuiOverlay.BLANK.builder(inventorySize, DARK_GRAY)
             .title(title)
             .layer(GuiOverlay.TOP_BAR, BLACK);
+        List<Integer> topSlots = new ArrayList<>(List.of(4, 3, 5, 2, 6, 1, 7, 0, 8));
         if (pageIndex > 0) {
+            topSlots.removeAll(List.of(0));
             gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
                     pathNode.page -= 1;
                     open(player);
@@ -136,13 +141,14 @@ public final class Session {
                 });
         }
         if (pageIndex < pageCount - 1) {
+            topSlots.removeAll(List.of(8));
             gui.setItem(8, Mytems.ARROW_RIGHT.createItemStack(), click -> {
                     pathNode.page += 1;
                     open(player);
                     click(player);
                 });
         }
-        Iterator<Integer> iter = List.of(4, 5, 3, 6, 2, 7, 1).iterator();
+        Iterator<Integer> iter = topSlots.iterator();
         ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
         diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
         gui.setItem(iter.next(), Items.text(diskItem, List.of(text("SAVE", GREEN))), click -> {
@@ -157,6 +163,119 @@ public final class Session {
                     }
                 }
             });
+        if (menuNode instanceof ListNode listNode) {
+            if (iter.hasNext() && selection.size() <= 1) {
+                final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
+                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
+                        if (click.isLeftClick()) {
+                            try {
+                                fetchNewValue(player, listNode.getValueType(), null, newValue -> {
+                                        listNode.getList().add(listIndex, newValue);
+                                        open(player);
+                                        click(player);
+                                    },
+                                    () -> {
+                                        open(player);
+                                        fail(player);
+                                    });
+                                click(player);
+                            } catch (MenuException me) {
+                                player.sendMessage(text(me.getMessage(), RED));
+                                fail(player);
+                            }
+                        }
+                    });
+            }
+            if (iter.hasNext() && isSelectionConsecutive()) {
+                gui.setItem(iter.next(), Items.text(Mytems.ARROW_DOWN.createIcon(), List.of(text("MOVE DOWN", GREEN))), click -> {
+                        if (click.isLeftClick()) {
+                            List<Object> values = new ArrayList<>(selection.size());
+                            int index = selection.get(0);
+                            for (int i = 0; i < selection.size(); i += 1) {
+                                values.add(listNode.getList().remove(index));
+                                selection.set(i, selection.get(i) - 1);
+                            }
+                            listNode.getList().addAll(index - 1, values);
+                            open(player);
+                            click(player);
+                        }
+                    });
+                gui.setItem(iter.next(), Items.text(Mytems.ARROW_UP.createIcon(), List.of(text("MOVE UP", GREEN))), click -> {
+                        if (click.isLeftClick()) {
+                            List<Object> values = new ArrayList<>(selection.size());
+                            int index = selection.get(0);
+                            for (int i = 0; i < selection.size(); i += 1) {
+                                values.add(listNode.getList().remove(index));
+                                selection.set(i, selection.get(i) + 1);
+                            }
+                            listNode.getList().addAll(index + 1, values);
+                            open(player);
+                            click(player);
+                        }
+                    });
+            }
+        }
+        if (menuNode instanceof MapNode mapNode) {
+            if (iter.hasNext()) {
+                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
+                        if (click.isLeftClick()) {
+                            try {
+                                fetchNewValue(player, mapNode.getKeyType(), null, newKey -> {
+                                        try {
+                                            fetchNewValue(player, mapNode.getValueType(), null, newValue -> {
+                                                    mapNode.getMap().put(newKey, newValue);
+                                                    player.sendMessage(text("Added key value pair: " + newKey + ", " + newValue, GREEN));
+                                                    open(player);
+                                                    click(player);
+                                                },
+                                                () -> {
+                                                    open(player);
+                                                    fail(player);
+                                                });
+                                        } catch (MenuException me) {
+                                            player.sendMessage(text(me.getMessage(), RED));
+                                            fail(player);
+                                            open(player);
+                                        }
+                                        open(player);
+                                        click(player);
+                                    },
+                                    () -> {
+                                        open(player);
+                                        fail(player);
+                                    });
+                                click(player);
+                            } catch (MenuException me) {
+                                player.sendMessage(text(me.getMessage(), RED));
+                                fail(player);
+                            }
+                        }
+                    });
+            }
+        }
+        if (menuNode instanceof SetNode setNode) {
+            if (iter.hasNext()) {
+                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
+                        if (click.isLeftClick()) {
+                            try {
+                                fetchNewValue(player, setNode.getValueType(), null, newValue -> {
+                                        setNode.getSet().add(newValue);
+                                        open(player);
+                                        click(player);
+                                    },
+                                    () -> {
+                                        open(player);
+                                        fail(player);
+                                    });
+                                click(player);
+                            } catch (MenuException me) {
+                                player.sendMessage(text(me.getMessage(), RED));
+                                fail(player);
+                            }
+                        }
+                    });
+            }
+        }
         if (!selection.isEmpty()) {
             gui.setItem(iter.next(), Items.text(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN))), click -> {
                     if (click.isLeftClick()) {
@@ -218,37 +337,11 @@ public final class Session {
                             fail(player);
                             return;
                         }
-                        player.sendMessage(text("Pasted " + selection.size() + " objects"));
+                        player.sendMessage(text("Pasted " + clipboard.size() + " objects"));
                         open(player);
                         click(player);
                     }
                 });
-        }
-        if (menuNode instanceof ListNode listNode) {
-            if (iter.hasNext() && selection.size() <= 1) {
-                final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
-                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createItemStack(), List.of(text("Add item", GREEN))),
-                            click -> {
-                                if (click.isLeftClick()) {
-                                    try {
-                                        fetchNewValue(player, listNode.getValueType(), null,
-                                                      newValue -> {
-                                                          listNode.getList().add(listIndex, newValue);
-                                                          open(player);
-                                                          click(player);
-                                                      },
-                                                      () -> {
-                                                          open(player);
-                                                          fail(player);
-                                                      });
-                                        click(player);
-                                    } catch (MenuException me) {
-                                        player.sendMessage(text(me.getMessage(), RED));
-                                        fail(player);
-                                    }
-                                }
-                            });
-            }
         }
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
             for (EditMenuButton button : adapter.getEditMenuButtons()) {
@@ -392,8 +485,19 @@ public final class Session {
         return gui;
     }
 
+    private boolean isSelectionConsecutive() {
+        if (selection.isEmpty()) return false;
+        if (selection.size() == 1) return true;
+        for (int i = 0; i < selection.size() - 1; i += 1) {
+            if (selection.get(i) + 1 != selection.get(i + 1)) return false;
+        }
+        return true;
+    }
+
     public void fetchNewValue(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
-        if (variableType.canParseValue()) {
+        if (variableType.nodeType == NodeType.ENUM) {
+            fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, 0);
+        } else if (variableType.canParseValue()) {
             fetchNewValueFromChat(player, variableType, oldValue, valueCallback, failCallback);
         } else if (variableType.canCreateNewInstance()) {
             valueCallback.accept(variableType.createNewInstance());
@@ -428,5 +532,61 @@ public final class Session {
                     .hoverEvent(showText(text("/editor reopen", RED))),
                 }));
         player.closeInventory();
+    }
+
+    public void fetchEnumFromMenu(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback, int page) {
+        List<Object> enums = List.of(variableType.objectType.getEnumConstants());
+        final int rows = 5;
+        final int inventorySize = rows * 9 + 9;
+        final int pageSize = rows * 9;
+        final int pageCount = (enums.size() - 1) / pageSize + 1;
+        final int pageIndex = Math.min(pageCount - 1, page);
+        Component title = join(noSeparators(), new Component[] {
+                text(pageCount > 1 ? "" + (pageIndex + 1) + "/" + pageCount + " " : "", GRAY),
+                text("Editor ", BLUE),
+                text(variableType.getClassName(), WHITE),
+            });
+        Gui gui = new Gui(owningPlugin).size(inventorySize);
+        GuiOverlay.Builder titleBuilder = GuiOverlay.BLANK.builder(inventorySize, DARK_GRAY)
+            .title(title)
+            .layer(GuiOverlay.TOP_BAR, BLACK);
+        if (pageIndex > 0) {
+            gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
+                    fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, page - 1);
+                    click(player);
+                });
+        }
+        if (pageIndex < pageCount - 1) {
+            gui.setItem(8, Mytems.ARROW_RIGHT.createItemStack(), click -> {
+                    fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, page + 1);
+                    click(player);
+                });
+        }
+        for (int i = 0; i < pageSize; i += 1) {
+            int enumIndex = pageSize * pageIndex + i;
+            if (enumIndex >= enums.size()) break;
+            final Object it = enums.get(enumIndex);
+            int guiIndex = 9 + i;
+            if (oldValue == it) {
+                titleBuilder.highlightSlot(guiIndex, DARK_BLUE);
+            }
+            ItemStack icon = Icon.of(it);
+            List<Component> tooltip;
+            tooltip = List.of(text(it.toString(), WHITE),
+                              text(variableType.getClassName(), DARK_GRAY, ITALIC));
+            gui.setItem(guiIndex, Items.text(icon, tooltip), click -> {
+                    if (click.isLeftClick()) {
+                        valueCallback.accept(it);
+                        click(player);
+                    }
+                });
+        }
+        gui.setItem(Gui.OUTSIDE, null, click -> {
+                if (click.isLeftClick()) {
+                    failCallback.run();
+                }
+            });
+        gui.title(titleBuilder.build());
+        gui.open(player);
     }
 }

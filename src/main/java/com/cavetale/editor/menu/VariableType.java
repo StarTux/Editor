@@ -38,9 +38,20 @@ public final class VariableType {
         return List.copyOf(result);
     }
 
+    protected static String getClassName(Class<?> clazz) {
+        Class<?> enclosing = clazz.getEnclosingClass();
+        return enclosing != null
+            ? getClassName(enclosing) + "." + clazz.getSimpleName()
+            : clazz.getSimpleName();
+    }
+
+    public String getClassName() {
+        return getClassName(objectType);
+    }
+
     @Override
     public String toString() {
-        return nodeType + "(" + objectType.getSimpleName()
+        return nodeType + "(" + getClassName()
             + (genericTypes.isEmpty()
                ? ""
                : "<" + (genericTypes.stream()

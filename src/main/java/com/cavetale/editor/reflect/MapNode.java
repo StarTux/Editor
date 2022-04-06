@@ -1,12 +1,14 @@
 package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
-import com.cavetale.editor.menu.VariableType;
 import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.Getter;
 
+@Getter
 public final class MapNode implements MenuNode {
     protected final Map<Object, Object> map;
     protected final VariableType variableType;

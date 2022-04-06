@@ -6,7 +6,9 @@ import com.cavetale.editor.menu.VariableType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import lombok.Getter;
 
+@Getter
 public final class SetNode implements MenuNode {
     protected final Set<Object> set;
     protected final VariableType variableType;

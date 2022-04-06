@@ -2,7 +2,6 @@ package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,11 +31,6 @@ public final class ObjectNode implements MenuNode {
         Class<?> class2 = clazz.getSuperclass();
         if (class2 != null) computeChildrenRecursive(class2);
         for (Field field : clazz.getDeclaredFields()) {
-            int modifiers = field.getModifiers();
-            List<String> modifierNames = new ArrayList<>();
-            if (Modifier.isStatic(modifiers)) continue;
-            if (Modifier.isTransient(modifiers)) continue;
-            if (Modifier.isFinal(modifiers)) continue;
             children.add(new FieldNode(object, field));
         }
     }

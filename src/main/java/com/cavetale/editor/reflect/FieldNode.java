@@ -7,6 +7,7 @@ import com.cavetale.editor.menu.VariableType;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +20,13 @@ public final class FieldNode implements MenuItemNode {
     protected final Object parent;
     protected final Field field;
     @Getter protected final VariableType variableType;
+    protected final int modifiers;
 
     public FieldNode(final Object parent, final Field field) {
         this.parent = parent;
         this.field = field;
         this.variableType = VariableType.of(field);
+        this.modifiers = field.getModifiers();
     }
 
     @Override
@@ -43,7 +46,7 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public boolean canSetValue() {
-        return true;
+        return !Modifier.isFinal(modifiers);
     }
 
     @Override
@@ -110,6 +113,7 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public boolean canHold(Object object) {
+        if (!Modifier.isFinal(modifiers)) return false;
         if (object == null) return isDeletable();
         if (variableType.nodeType.isPrimitive()) {
             return variableType.nodeType == NodeType.of(object.getClass());
