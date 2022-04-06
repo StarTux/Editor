@@ -237,8 +237,6 @@ public final class Session {
                                             fail(player);
                                             open(player);
                                         }
-                                        open(player);
-                                        click(player);
                                     },
                                     () -> {
                                         open(player);
