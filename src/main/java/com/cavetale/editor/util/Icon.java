@@ -25,13 +25,15 @@ public final class Icon {
         }
         if (o instanceof Material material && material.isItem() && !material.isEmpty()) {
             return new ItemStack(material);
-        } else if (o instanceof Mytems mytems) {
+        }
+        if (o instanceof Mytems mytems) {
             return mytems.createIcon();
-        } else if (o instanceof EntityType entityType && entityType != EntityType.UNKNOWN) {
+        }
+        if (o instanceof EntityType entityType && entityType != EntityType.UNKNOWN) {
             ItemStack result = Bukkit.getItemFactory().getSpawnEgg(entityType);
-            if (result != null) return null;
-            return firstLetter(o);
-        } else if (o instanceof Enum) {
+            if (result != null) return result;
+        }
+        if (o instanceof Enum) {
             return firstLetter(o);
         }
         return NodeType.of(o.getClass()).mytems.createIcon();
