@@ -20,10 +20,10 @@ import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.util.Items;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -111,6 +111,8 @@ public final class Session {
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, SoundCategory.MASTER, 1.0f, 0.5f);
     }
 
+    private static final record Click(Supplier<ItemStack> icon, Consumer<ClickType> click) { }
+
     public Gui open(Player player) {
         if (rootObject == null) return null;
         MenuNode menuNode = findPath();
@@ -131,7 +133,7 @@ public final class Session {
         GuiOverlay.Builder titleBuilder = GuiOverlay.BLANK.builder(inventorySize, DARK_GRAY)
             .title(title)
             .layer(GuiOverlay.TOP_BAR, BLACK);
-        List<Integer> topSlots = new ArrayList<>(List.of(4, 3, 5, 2, 6, 1, 7, 0, 8));
+        List<Integer> topSlots = new ArrayList<>(List.of(0, 1, 2, 3, 4, 5, 6, 7, 8));
         if (pageIndex > 0) {
             topSlots.removeAll(List.of(0));
             gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
@@ -148,76 +150,87 @@ public final class Session {
                     click(player);
                 });
         }
-        Iterator<Integer> iter = topSlots.iterator();
-        ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
-        diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
-        gui.setItem(iter.next(), Items.text(diskItem, List.of(text("SAVE", GREEN))), click -> {
-                if (click.isLeftClick()) {
-                    try {
-                        editContext.save();
-                        player.sendMessage(text("Saved to disk!", GREEN));
-                        click(player);
-                    } catch (MenuException me) {
-                        player.sendMessage(text("Error saving: " + me.getMessage(), RED));
-                        fail(player);
+        List<Click> menuClicks = new ArrayList<>();
+        menuClicks.add(new Click(() -> {
+                    ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
+                    diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
+                    return Items.text(diskItem, List.of(text("SAVE", GREEN)));
+        }, click -> {
+                    if (click.isLeftClick()) {
+                        try {
+                            editContext.save();
+                            player.sendMessage(text("Saved to disk!", GREEN));
+                            click(player);
+                        } catch (MenuException me) {
+                            player.sendMessage(text("Error saving: " + me.getMessage(), RED));
+                            fail(player);
+                        }
                     }
-                }
-            });
+        }));
         if (menuNode instanceof ListNode listNode) {
-            if (iter.hasNext() && selection.size() <= 1) {
+            if (selection.size() <= 1) {
                 final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
-                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
-                        if (click.isLeftClick()) {
-                            try {
-                                fetchNewValue(player, listNode.getValueType(), null, newValue -> {
-                                        listNode.getList().add(listIndex, newValue);
+                menuClicks.add(new Click(() -> {
+                            return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+                }, click -> {
+                            if (click.isLeftClick()) {
+                                try {
+                                    fetchNewValue(player, listNode.getValueType(), null, newValue -> {
+                                            listNode.getList().add(listIndex, newValue);
+                                            open(player);
+                                            click(player);
+                                        },
+                                        () -> {
+                                            open(player);
+                                            fail(player);
+                                        });
+                                    click(player);
+                                } catch (MenuException me) {
+                                    player.sendMessage(text(me.getMessage(), RED));
+                                    fail(player);
+                                }
+                            }
+                }));
+            }
+            if (isSelectionConsecutive()) {
+                menuClicks.addAll(List.of(new Click[] {
+                            new Click(() -> {
+                                    return Items.text(Mytems.ARROW_DOWN.createIcon(), List.of(text("MOVE DOWN", GREEN)));
+                            }, click -> {
+                                    if (click.isLeftClick()) {
+                                        List<Object> values = new ArrayList<>(selection.size());
+                                        int index = selection.get(0);
+                                        for (int i = 0; i < selection.size(); i += 1) {
+                                            values.add(listNode.getList().remove(index));
+                                            selection.set(i, selection.get(i) - 1);
+                                        }
+                                        listNode.getList().addAll(index - 1, values);
                                         open(player);
                                         click(player);
-                                    },
-                                    () -> {
+                                    }
+                            }),
+                            new Click(() -> {
+                                    return Items.text(Mytems.ARROW_UP.createIcon(), List.of(text("MOVE UP", GREEN)));
+                            }, click -> {
+                                    if (click.isLeftClick()) {
+                                        List<Object> values = new ArrayList<>(selection.size());
+                                        int index = selection.get(0);
+                                        for (int i = 0; i < selection.size(); i += 1) {
+                                            values.add(listNode.getList().remove(index));
+                                            selection.set(i, selection.get(i) + 1);
+                                        }
+                                        listNode.getList().addAll(index + 1, values);
                                         open(player);
-                                        fail(player);
-                                    });
-                                click(player);
-                            } catch (MenuException me) {
-                                player.sendMessage(text(me.getMessage(), RED));
-                                fail(player);
-                            }
-                        }
-                    });
-            }
-            if (iter.hasNext() && isSelectionConsecutive()) {
-                gui.setItem(iter.next(), Items.text(Mytems.ARROW_DOWN.createIcon(), List.of(text("MOVE DOWN", GREEN))), click -> {
-                        if (click.isLeftClick()) {
-                            List<Object> values = new ArrayList<>(selection.size());
-                            int index = selection.get(0);
-                            for (int i = 0; i < selection.size(); i += 1) {
-                                values.add(listNode.getList().remove(index));
-                                selection.set(i, selection.get(i) - 1);
-                            }
-                            listNode.getList().addAll(index - 1, values);
-                            open(player);
-                            click(player);
-                        }
-                    });
-                gui.setItem(iter.next(), Items.text(Mytems.ARROW_UP.createIcon(), List.of(text("MOVE UP", GREEN))), click -> {
-                        if (click.isLeftClick()) {
-                            List<Object> values = new ArrayList<>(selection.size());
-                            int index = selection.get(0);
-                            for (int i = 0; i < selection.size(); i += 1) {
-                                values.add(listNode.getList().remove(index));
-                                selection.set(i, selection.get(i) + 1);
-                            }
-                            listNode.getList().addAll(index + 1, values);
-                            open(player);
-                            click(player);
-                        }
-                    });
+                                        click(player);
+                                    }
+                            }),
+                        }));
             }
         }
         if (menuNode instanceof MapNode mapNode) {
-            if (iter.hasNext()) {
-                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
+            menuClicks.add(new Click(() -> {
+                        return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+            }, click -> {
                         if (click.isLeftClick()) {
                             try {
                                 fetchNewValue(player, mapNode.getKeyType(), null, newKey -> {
@@ -248,12 +261,12 @@ public final class Session {
                                 fail(player);
                             }
                         }
-                    });
-            }
+            }));
         }
         if (menuNode instanceof SetNode setNode) {
-            if (iter.hasNext()) {
-                gui.setItem(iter.next(), Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN))), click -> {
+            menuClicks.add(new Click(() -> {
+                        return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+            }, click -> {
                         if (click.isLeftClick()) {
                             try {
                                 fetchNewValue(player, setNode.getValueType(), null, newValue -> {
@@ -271,90 +284,103 @@ public final class Session {
                                 fail(player);
                             }
                         }
-                    });
-            }
+            }));
         }
         if (!selection.isEmpty()) {
-            gui.setItem(iter.next(), Items.text(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN))), click -> {
-                    if (click.isLeftClick()) {
-                        List<Object> newClipboard;
-                        try {
-                            newClipboard = menuNode.copy(selection);
-                        } catch (MenuException me) {
-                            player.sendMessage(text("Copy failed: " + me.getMessage(), RED));
-                            fail(player);
-                            return;
+            menuClicks.add(new Click(() -> {
+                        return Items.text(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN)));
+            }, click -> {
+                        if (click.isLeftClick()) {
+                            List<Object> newClipboard;
+                            try {
+                                newClipboard = menuNode.copy(selection);
+                            } catch (MenuException me) {
+                                player.sendMessage(text("Copy failed: " + me.getMessage(), RED));
+                                fail(player);
+                                return;
+                            }
+                            if (newClipboard != null && !newClipboard.isEmpty()) {
+                                this.clipboard.clear();
+                                this.clipboard.addAll(newClipboard);
+                                player.sendMessage(text("Copied " + clipboard.size() + " objects", GREEN));
+                                open(player);
+                                click(player);
+                            } else {
+                                fail(player);
+                            }
                         }
-                        if (newClipboard != null && !newClipboard.isEmpty()) {
-                            this.clipboard.clear();
-                            this.clipboard.addAll(newClipboard);
-                            player.sendMessage(text("Copied " + clipboard.size() + " objects", GREEN));
-                            open(player);
-                            click(player);
-                        } else {
-                            fail(player);
-                        }
-                    }
-                });
+            }));
         }
         if (!selection.isEmpty() && menuNode.canCut(selection)) {
-            gui.setItem(iter.next(), Items.text(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW))), click -> {
-                    if (click.isLeftClick()) {
-                        List<Object> newClipboard;
-                        try {
-                            newClipboard = menuNode.cut(selection);
-                        } catch (MenuException me) {
-                            player.sendMessage(text("Cut failed: " + me.getMessage(), RED));
-                            fail(player);
-                            return;
+            menuClicks.add(new Click(() -> {
+                        return Items.text(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW)));
+            }, click -> {
+                        if (click.isLeftClick()) {
+                            List<Object> newClipboard;
+                            try {
+                                newClipboard = menuNode.cut(selection);
+                            } catch (MenuException me) {
+                                player.sendMessage(text("Cut failed: " + me.getMessage(), RED));
+                                fail(player);
+                                return;
+                            }
+                            if (newClipboard != null && !newClipboard.isEmpty()) {
+                                this.clipboard.clear();
+                                this.clipboard.addAll(newClipboard);
+                                player.sendMessage(text("Cut " + clipboard.size() + " objects", GREEN));
+                                open(player);
+                                click(player);
+                            } else {
+                                fail(player);
+                            }
                         }
-                        if (newClipboard != null && !newClipboard.isEmpty()) {
-                            this.clipboard.clear();
-                            this.clipboard.addAll(newClipboard);
-                            player.sendMessage(text("Cut " + clipboard.size() + " objects", GREEN));
-                            open(player);
-                            click(player);
-                        } else {
-                            fail(player);
-                        }
-                    }
-                });
+            }));
         }
         if (!clipboard.isEmpty() && menuNode.canPaste(clipboard, selection)) {
-            gui.setItem(iter.next(), Items.text(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE))), click -> {
-                    if (click.isLeftClick()) {
-                        if (clipboard.isEmpty()) {
-                            player.sendMessage(text("Clipboard is empty!", RED));
-                            fail(player);
-                            return;
+            menuClicks.add(new Click(() -> {
+                        return Items.text(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE)));
+            }, click -> {
+                        if (click.isLeftClick()) {
+                            if (clipboard.isEmpty()) {
+                                player.sendMessage(text("Clipboard is empty!", RED));
+                                fail(player);
+                                return;
+                            }
+                            try {
+                                menuNode.paste(clipboard, selection);
+                            } catch (MenuException me) {
+                                player.sendMessage(text("Paste failed: " + me.getMessage()));
+                                fail(player);
+                                return;
+                            }
+                            player.sendMessage(text("Pasted " + clipboard.size() + " objects"));
+                            open(player);
+                            click(player);
                         }
-                        try {
-                            menuNode.paste(clipboard, selection);
-                        } catch (MenuException me) {
-                            player.sendMessage(text("Paste failed: " + me.getMessage()));
-                            fail(player);
-                            return;
-                        }
-                        player.sendMessage(text("Pasted " + clipboard.size() + " objects"));
-                        open(player);
-                        click(player);
-                    }
-                });
+            }));
         }
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
             for (EditMenuButton button : adapter.getEditMenuButtons()) {
-                if (!iter.hasNext()) break;
-                gui.setItem(iter.next(), Items.text(button.getMenuIcon(), button.getTooltip()), click -> {
-                        try {
-                            button.onClick(player, click.getClick());
-                        } catch (MenuException me) {
-                            player.sendMessage(text("Error: " + me.getMessage()));
-                            return;
-                        }
-                        open(player);
-                        click(player);
-                    });
+                menuClicks.add(new Click(() -> {
+                            return Items.text(button.getMenuIcon(), button.getTooltip());
+                }, click -> {
+                            try {
+                                button.onClick(player, click);
+                            } catch (MenuException me) {
+                                player.sendMessage(text("Error: " + me.getMessage()));
+                                return;
+                            }
+                            open(player);
+                            click(player);
+                }));
             }
+        }
+        int offset = Math.max(0, (topSlots.size() - menuClicks.size()) / 2);
+        for (int i = 0; i < topSlots.size(); i += 1) {
+            if (i >= menuClicks.size()) break;
+            int slot = topSlots.get(i + offset);
+            Click menuClick = menuClicks.get(i);
+            gui.setItem(slot, menuClick.icon().get(), click -> menuClick.click().accept(click.getClick()));
         }
         gui.setItem(Gui.OUTSIDE, null, click -> {
                 if (click.isLeftClick()) {
