@@ -32,8 +32,6 @@ public interface MenuItemNode {
 
     MenuNode getMenuNode();
 
-    boolean canHold(Object object);
-
     default ItemStack getIcon() {
         return Icon.of(getValue());
     }

@@ -1,8 +1,9 @@
 package com.cavetale.editor.reflect;
 
+import com.cavetale.core.editor.EditMenuAdapter;
+import com.cavetale.core.editor.EditMenuItem;
 import com.cavetale.editor.menu.MenuItemNode;
 import com.cavetale.editor.menu.MenuNode;
-import com.cavetale.editor.menu.NodeType;
 import com.cavetale.editor.menu.VariableType;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
@@ -17,16 +18,27 @@ import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.*;
 
 public final class FieldNode implements MenuItemNode {
-    protected final Object parent;
+    protected final ObjectNode parentNode;
     protected final Field field;
     @Getter protected final VariableType variableType;
-    protected final int modifiers;
+    private final boolean deletable;
+    private final boolean canSetValue;
 
-    public FieldNode(final Object parent, final Field field) {
-        this.parent = parent;
+    public FieldNode(final ObjectNode parentNode, final Field field) {
+        this.parentNode = parentNode;
         this.field = field;
-        this.variableType = VariableType.of(field);
-        this.modifiers = field.getModifiers();
+        EditMenuAdapter adapter = parentNode.object instanceof EditMenuAdapter theAdapter
+            ? theAdapter
+            : new EditMenuAdapter() { };
+        this.variableType = VariableType.of(field, adapter);
+        final int modifiers = field.getModifiers();
+        EditMenuItem editMenuItem = field.getAnnotation(EditMenuItem.class);
+        this.deletable = editMenuItem != null
+            ? editMenuItem.deletable()
+            : false;
+        this.canSetValue = editMenuItem != null
+            ? editMenuItem.settable()
+            : !Modifier.isFinal(modifiers);
     }
 
     @Override
@@ -38,7 +50,7 @@ public final class FieldNode implements MenuItemNode {
     public Object getValue() {
         field.setAccessible(true);
         try {
-            return field.get(parent);
+            return field.get(parentNode.object);
         } catch (IllegalAccessException iae) {
             throw new IllegalStateException(iae);
         }
@@ -46,14 +58,14 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public boolean canSetValue() {
-        return !Modifier.isFinal(modifiers);
+        return canSetValue;
     }
 
     @Override
     public void setValue(Object value) {
         field.setAccessible(true);
         try {
-            field.set(parent, value);
+            field.set(parentNode.object, value);
         } catch (IllegalAccessException iae) {
             throw new IllegalStateException(iae);
         }
@@ -61,7 +73,7 @@ public final class FieldNode implements MenuItemNode {
 
     @Override
     public boolean isDeletable() {
-        return !field.getType().isPrimitive();
+        return deletable;
     }
 
     @Override
@@ -108,38 +120,6 @@ public final class FieldNode implements MenuItemNode {
             return new ObjectNode(value);
         }
         default: return null;
-        }
-    }
-
-    @Override
-    public boolean canHold(Object object) {
-        if (!Modifier.isFinal(modifiers)) return false;
-        if (object == null) return isDeletable();
-        if (variableType.nodeType.isPrimitive()) {
-            return variableType.nodeType == NodeType.of(object.getClass());
-        }
-        switch (variableType.nodeType) {
-        case OBJECT: return variableType.objectType.isInstance(object);
-        case MAP: {
-            if (!(object instanceof Map)) return false;
-            @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) object;
-            List<Class<?>> genericTypes = getGenericTypes();
-            for (Map.Entry<Object, Object> entry : map.entrySet()) {
-                if (!genericTypes.get(0).isInstance(entry.getKey())) return false;
-                if (!genericTypes.get(1).isInstance(entry.getValue())) return false;
-            }
-            return true;
-        }
-        case LIST: {
-            if (!(object instanceof List)) return false;
-            @SuppressWarnings("unchecked") List<Object> list = (List<Object>) object;
-            List<Class<?>> genericTypes = getGenericTypes();
-            for (Object it : list) {
-                if (!genericTypes.get(0).isInstance(it)) return false;
-            }
-            return true;
-        }
-        default: throw new IllegalStateException("variableType=" + variableType);
         }
     }
 }

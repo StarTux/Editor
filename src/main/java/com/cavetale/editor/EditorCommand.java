@@ -3,9 +3,11 @@ package com.cavetale.editor;
 import com.cavetale.core.command.AbstractCommand;
 import com.cavetale.core.command.CommandWarn;
 import com.cavetale.core.editor.EditMenuAdapter;
-import com.cavetale.core.editor.EditMenuButton;
+import com.cavetale.core.editor.EditMenuItem;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.bukkit.entity.Player;
 
 public final class EditorCommand extends AbstractCommand<EditorPlugin> {
@@ -35,10 +37,13 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
         return true;
     }
 
-    static class Foo {
-        Bar bar = new Bar();
+    static class Foo implements EditMenuAdapter {
         List<Integer> bars = new ArrayList<>(List.of(11, 222, 3333, 44444));
-        String name = "foo";
+        @EditMenuItem(deletable = true)
+        String foo = "foo";
+        @EditMenuItem(deletable = false)
+        String bar = "bar";
+        @EditMenuItem(settable = false)
         int number = 1;
         double dbl = 1.23;
         String world = "home";
@@ -48,17 +53,31 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
         double pitch = 12.3;
         double yaw = 33.3;
         boolean valid = true;
+        @EditMenuItem(settable = false)
         boolean invalid = false;
-    }
-
-    static class Bar implements EditMenuAdapter {
-        String message = "Hello World";
-        double volume = 99.9;
-        int iter = 0;
+        Map<String, String> map = new HashMap<>();
 
         @Override
-        public List<EditMenuButton> getEditMenuButtons() {
-            return List.of();
+        public List<Object> getPossibleValues(String fieldName, int valueIndex) {
+            switch (fieldName) {
+            case "dbl": return List.of(1.23, 4.56, 7.89);
+            case "map":
+                return valueIndex == 0
+                    ? List.of("Left", "Side", "Key", "Values")
+                    : List.of("Right", "Half", "Value", "Objects");
+            default: return null;
+            }
+        }
+
+        @Override
+        public Boolean validateValue(String fieldName, Object newValue, int valueIndex) {
+            switch (fieldName) {
+            case "x":
+            case "y":
+            case "z":
+                return newValue instanceof Integer integer && integer >= 0;
+            default: return null;
+            }
         }
     }
 }

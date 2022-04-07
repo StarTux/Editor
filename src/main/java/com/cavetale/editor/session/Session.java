@@ -237,8 +237,6 @@ public final class Session {
                                             fail(player);
                                             open(player);
                                         }
-                                        open(player);
-                                        click(player);
                                     },
                                     () -> {
                                         open(player);
@@ -495,8 +493,12 @@ public final class Session {
     }
 
     public void fetchNewValue(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
-        if (variableType.nodeType == NodeType.ENUM) {
-            fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, 0);
+        List<Object> possibleValues = variableType.possibleValueSupplier.get();
+        if (possibleValues != null) {
+            fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, 0);
+        } else if (variableType.nodeType == NodeType.ENUM) {
+            List<Object> enumList = List.of(variableType.objectType.getEnumConstants());
+            fetchPossibleValueFromMenu(player, variableType, enumList, oldValue, valueCallback, failCallback, 0);
         } else if (variableType.canParseValue()) {
             fetchNewValueFromChat(player, variableType, oldValue, valueCallback, failCallback);
         } else if (variableType.canCreateNewInstance()) {
@@ -520,7 +522,12 @@ public final class Session {
                 failCallback.run();
                 return;
             }
-            valueCallback.accept(newValue);
+            if (!variableType.canHold(newValue)) {
+                player.sendMessage(text("Illegal value: " + newValue));
+                failCallback.run();
+            } else {
+                valueCallback.accept(newValue);
+            }
         };
         player.sendMessage(join(separator(space()), new Component[] {
                     text("Type the new value in chat", GREEN)
@@ -534,16 +541,21 @@ public final class Session {
         player.closeInventory();
     }
 
-    public void fetchEnumFromMenu(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback, int page) {
-        List<Object> enums = List.of(variableType.objectType.getEnumConstants());
+    public void fetchPossibleValueFromMenu(Player player,
+                                           VariableType variableType,
+                                           List<Object> possibleValues,
+                                           Object oldValue,
+                                           Consumer<Object> valueCallback,
+                                           Runnable failCallback,
+                                           int page) {
         final int rows = 5;
         final int inventorySize = rows * 9 + 9;
         final int pageSize = rows * 9;
-        final int pageCount = (enums.size() - 1) / pageSize + 1;
+        final int pageCount = (possibleValues.size() - 1) / pageSize + 1;
         final int pageIndex = Math.min(pageCount - 1, page);
         Component title = join(noSeparators(), new Component[] {
                 text(pageCount > 1 ? "" + (pageIndex + 1) + "/" + pageCount + " " : "", GRAY),
-                text("Editor ", BLUE),
+                text("Value Picker ", GRAY),
                 text(variableType.getClassName(), WHITE),
             });
         Gui gui = new Gui(owningPlugin).size(inventorySize);
@@ -552,20 +564,20 @@ public final class Session {
             .layer(GuiOverlay.TOP_BAR, BLACK);
         if (pageIndex > 0) {
             gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
-                    fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, page - 1);
+                    fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, page - 1);
                     click(player);
                 });
         }
         if (pageIndex < pageCount - 1) {
             gui.setItem(8, Mytems.ARROW_RIGHT.createItemStack(), click -> {
-                    fetchEnumFromMenu(player, variableType, oldValue, valueCallback, failCallback, page + 1);
+                    fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, page + 1);
                     click(player);
                 });
         }
         for (int i = 0; i < pageSize; i += 1) {
             int enumIndex = pageSize * pageIndex + i;
-            if (enumIndex >= enums.size()) break;
-            final Object it = enums.get(enumIndex);
+            if (enumIndex >= possibleValues.size()) break;
+            final Object it = possibleValues.get(enumIndex);
             int guiIndex = 9 + i;
             if (oldValue == it) {
                 titleBuilder.highlightSlot(guiIndex, DARK_BLUE);

@@ -18,27 +18,27 @@ public enum NodeType {
            () -> "",
            c -> c == String.class,
            Function.identity()),
-    INTEGER(Category.PRIMITIVE, Mytems.DATA_INTEGER,
+    INTEGER(Category.NUMBER, Mytems.DATA_INTEGER,
             () -> 0,
             c -> c == Integer.class || c == int.class,
             Integer::parseInt),
-    LONG(Category.PRIMITIVE, Mytems.DATA_INTEGER,
+    LONG(Category.NUMBER, Mytems.DATA_INTEGER,
          () -> 0L,
          c -> c == Long.class || c == long.class,
          Long::parseLong),
-    SHORT(Category.PRIMITIVE, Mytems.DATA_INTEGER,
+    SHORT(Category.NUMBER, Mytems.DATA_INTEGER,
           () -> (short) 0,
           c -> c == Short.class || c == short.class,
           Short::parseShort),
-    DOUBLE(Category.PRIMITIVE, Mytems.DATA_FLOAT,
+    DOUBLE(Category.NUMBER, Mytems.DATA_FLOAT,
            () -> 0.0,
            c -> c == Double.class || c == double.class,
            Double::parseDouble),
-    FLOAT(Category.PRIMITIVE, Mytems.DATA_FLOAT,
+    FLOAT(Category.NUMBER, Mytems.DATA_FLOAT,
           () -> 0.0f,
           c -> c == Float.class || c == float.class,
           Float::parseFloat),
-    BOOLEAN(Category.PRIMITIVE, Mytems.LETTER_B,
+    BOOLEAN(Category.NUMBER, Mytems.LETTER_B,
             () -> false,
             c -> c == Boolean.class || c == boolean.class,
             Boolean::parseBoolean),
@@ -70,7 +70,8 @@ public enum NodeType {
     public final Function<String, ? extends Object> valueParser;
     public final String humanName = name().substring(0, 1) + name().substring(1).toLowerCase();
 
-    public enum Category {
+    private enum Category {
+        NUMBER,
         PRIMITIVE,
         MENU;
     }
@@ -80,7 +81,11 @@ public enum NodeType {
     }
 
     public boolean isPrimitive() {
-        return category == Category.PRIMITIVE;
+        return category == Category.PRIMITIVE || category == Category.NUMBER;
+    }
+
+    public boolean isNumber() {
+        return category == Category.NUMBER;
     }
 
     public static NodeType of(Class<?> type) {

@@ -57,9 +57,4 @@ public final class ListItemNode implements MenuItemNode {
         }
         return null;
     }
-
-    @Override
-    public boolean canHold(Object object) {
-        return parentNode.canHoldValue(object);
-    }
 }

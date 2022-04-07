@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public final class ObjectNode implements MenuNode {
-    private final Object object;
+    protected final Object object;
     private List<FieldNode> children = null;
 
     @Override
@@ -31,7 +31,7 @@ public final class ObjectNode implements MenuNode {
         Class<?> class2 = clazz.getSuperclass();
         if (class2 != null) computeChildrenRecursive(class2);
         for (Field field : clazz.getDeclaredFields()) {
-            children.add(new FieldNode(object, field));
+            children.add(new FieldNode(this, field));
         }
     }
 
@@ -70,7 +70,7 @@ public final class ObjectNode implements MenuNode {
         for (int i = 0; i < size; i += 1) {
             Object it = clipboard.get(i);
             FieldNode node = getChildren().get(i);
-            if (!node.canSetValue() || !node.canHold(it)) return false;
+            if (!node.canSetValue() || !node.variableType.canHold(it)) return false;
         }
         return true;
     }

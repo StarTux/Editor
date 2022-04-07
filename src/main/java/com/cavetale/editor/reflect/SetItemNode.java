@@ -53,9 +53,4 @@ public final class SetItemNode implements MenuItemNode {
         }
         return null;
     }
-
-    @Override
-    public boolean canHold(Object object) {
-        return false;
-    }
 }

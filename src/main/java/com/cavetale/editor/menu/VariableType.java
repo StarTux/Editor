@@ -1,11 +1,15 @@
 package com.cavetale.editor.menu;
 
+import com.cavetale.core.editor.EditMenuAdapter;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Value;
 
@@ -14,24 +18,30 @@ public final class VariableType {
     public final NodeType nodeType;
     public final Class<?> objectType;
     public final List<VariableType> genericTypes;
+    public final Supplier<List<Object>> possibleValueSupplier;
+    public final Function<Object, Boolean> valueValidator;
 
-    public static VariableType of(Field field) {
+    public static VariableType of(Field field, EditMenuAdapter adapter) {
         Class<?> objectType = field.getType();
         NodeType nodeType = NodeType.of(objectType);
-        List<VariableType> genericTypes = getGenericTypes(field);
-        return new VariableType(nodeType, objectType, genericTypes);
+        List<VariableType> genericTypes = getGenericTypes(field, adapter);
+        return new VariableType(nodeType, objectType, genericTypes,
+                                () -> adapter.getPossibleValues(field.getName(), 0),
+                                o -> adapter.validateValue(field.getName(), o, 0));
     }
 
-    public static VariableType of(Class<?> clazz) {
-        return new VariableType(NodeType.of(clazz), clazz, List.of());
-    }
-
-    private static List<VariableType> getGenericTypes(Field field) {
+    private static List<VariableType> getGenericTypes(Field field, EditMenuAdapter adapter) {
         List<VariableType> result = new ArrayList<>();
         if (field.getAnnotatedType() instanceof AnnotatedParameterizedType apt) {
+            int i = 0;
             for (AnnotatedType at : apt.getAnnotatedActualTypeArguments()) {
                 if (at.getType() instanceof Class clazz) {
-                    result.add(VariableType.of(clazz));
+                    final int index = i++;
+                    result.add(new VariableType(NodeType.of(clazz),
+                                                clazz,
+                                                List.of(),
+                                                () -> adapter.getPossibleValues(field.getName(), index),
+                                                o -> adapter.validateValue(field.getName(), o, index)));
                 }
             }
         }
@@ -104,6 +114,40 @@ public final class VariableType {
             return objectType.getEnumConstants()[0];
         }
         default: return nodeType.createNewInstance();
+        }
+    }
+
+    public boolean canHold(Object object) {
+        // Adapter
+        List<Object> possibleValues = possibleValueSupplier.get();
+        if (possibleValues != null) return possibleValues.contains(object);
+        Boolean validated = valueValidator.apply(object);
+        if (validated != null) return validated;
+        // Generic
+        if (object == null) return false;
+        if (nodeType.isPrimitive()) {
+            return nodeType == NodeType.of(object.getClass());
+        }
+        switch (nodeType) {
+        case OBJECT: return objectType.isInstance(object);
+        case MAP: {
+            if (!(object instanceof Map)) return false;
+            @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) object;
+            for (Map.Entry<Object, Object> entry : map.entrySet()) {
+                if (!genericTypes.get(0).canHold(entry.getKey())) return false;
+                if (!genericTypes.get(1).canHold(entry.getValue())) return false;
+            }
+            return true;
+        }
+        case LIST: {
+            if (!(object instanceof List)) return false;
+            @SuppressWarnings("unchecked") List<Object> list = (List<Object>) object;
+            for (Object it : list) {
+                if (!genericTypes.get(0).canHold(it)) return false;
+            }
+            return true;
+        }
+        default: throw new IllegalStateException("variableType=" + this);
         }
     }
 }

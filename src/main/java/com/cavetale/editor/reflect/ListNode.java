@@ -1,7 +1,6 @@
 package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
-import com.cavetale.editor.menu.NodeType;
 import com.cavetale.editor.menu.VariableType;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,22 +73,11 @@ public final class ListNode implements MenuNode {
         return cutCopy(selection, true);
     }
 
-    protected boolean canHoldValue(Object object) {
-        if (object == null) return false;
-        if (valueType.nodeType.isPrimitive()) {
-            return valueType.nodeType == NodeType.of(object.getClass());
-        }
-        if (valueType.nodeType == NodeType.OBJECT) {
-            return valueType.objectType.isInstance(object);
-        }
-        return false;
-    }
-
     @Override
     public boolean canPaste(List<Object> clipboard, List<Integer> selection) {
         if (selection.size() > 1) return false;
         for (Object it : clipboard) {
-            if (!canHoldValue(it)) return false;
+            if (!valueType.canHold(it)) return false;
         }
         return true;
     }
