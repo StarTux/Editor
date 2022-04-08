@@ -1,21 +1,33 @@
 package com.cavetale.editor.util;
 
 import com.cavetale.core.editor.EditMenuAdapter;
+import com.cavetale.editor.menu.MenuItemNode;
+import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.NodeType;
+import com.cavetale.editor.menu.VariableType;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.item.font.Glyph;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import static net.kyori.adventure.text.Component.join;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
+import static net.kyori.adventure.text.format.TextDecoration.*;
 
 public final class Icon {
     private Icon() { }
 
-    public static ItemStack of(Object o) {
+    public static ItemStack of(MenuNode menu, Object o) {
         if (o == null) return Mytems.CHECKBOX.createIcon();
         if (o instanceof EditMenuAdapter adapter) {
-            ItemStack custom = adapter.getMenuIcon();
+            ItemStack custom = adapter.getMenuIcon(menu);
             if (custom != null) return custom;
         }
         if (o instanceof Boolean bool) {
@@ -46,5 +58,46 @@ public final class Icon {
             if (glyph != null) return glyph.mytems.createIcon();
         }
         return Mytems.QUESTION_MARK.createIcon();
+    }
+
+
+    public static List<Component> tooltip(MenuNode menu, MenuItemNode node) {
+        Object o = node.getValue();
+        if (o instanceof EditMenuAdapter adapter) {
+            List<Component> custom = adapter.getTooltip(menu);
+            if (custom != null) return custom;
+        }
+        Component value;
+        VariableType variableType = node.getVariableType();
+        if (variableType.nodeType.isPrimitive()) {
+            value = o != null
+                ? text(o.toString(), WHITE)
+                : text("null", DARK_PURPLE, ITALIC);
+        } else if (variableType.nodeType.isContainer()) {
+            int size = 0;
+            String sizeString = "?";
+            if (o instanceof Collection collection) {
+                size = collection.size();
+                sizeString = size > 0 ? "[" + size + "]" : "[]";
+            } else if (o instanceof Map map) {
+                size = map.size();
+                sizeString = size > 0 ? "{" + size + "}" : "{}";
+            }
+            value = o != null
+                ? text(sizeString, WHITE)
+                : text("null", DARK_PURPLE, ITALIC);
+        } else {
+            value = o != null
+                ? text(VariableType.classNameOf(o.getClass()), WHITE)
+                : text("null", DARK_PURPLE, ITALIC);
+        }
+        Component line2;
+        if (variableType.nodeType == NodeType.OBJECT || variableType.nodeType == NodeType.ENUM) {
+            line2 = text(variableType.nodeType.humanName + " " + variableType.getClassName(), DARK_GRAY, ITALIC);
+        } else {
+            line2 = text(variableType.nodeType.humanName, DARK_GRAY, ITALIC);
+        }
+        return List.of(join(noSeparators(), text(node.getKey(), GRAY), text(": ", DARK_GRAY), value),
+                       line2);
     }
 }

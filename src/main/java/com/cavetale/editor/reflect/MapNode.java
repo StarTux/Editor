@@ -2,23 +2,29 @@ package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.session.Session;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 
 @Getter
 public final class MapNode implements MenuNode {
+    protected final Session session;
+    protected final MenuNode parentNode;
     protected final Map<Object, Object> map;
     protected final VariableType variableType;
     protected final VariableType keyType;
     protected final VariableType valueType;
     private List<MapItemNode> children;
 
-    public MapNode(final Map<Object, Object> map, final VariableType variableType) {
+    public MapNode(final Session session, final @Nullable MenuNode parentNode, final Map<Object, Object> map, final VariableType variableType) {
         if (variableType.genericTypes.size() != 2) {
             throw new IllegalStateException(variableType.toString());
         }
+        this.session = session;
+        this.parentNode = parentNode;
         this.map = map;
         this.variableType = variableType;
         this.keyType = variableType.genericTypes.get(0);
@@ -26,8 +32,18 @@ public final class MapNode implements MenuNode {
     }
 
     @Override
+    public Session getContext() {
+        return session;
+    }
+
+    @Override
     public Object getObject() {
         return map;
+    }
+
+    @Override
+    public MenuNode getParentNode() {
+        return parentNode;
     }
 
     @Override

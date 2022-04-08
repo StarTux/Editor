@@ -49,7 +49,7 @@ public final class SetItemNode implements MenuItemNode {
     @Override
     public MenuNode getMenuNode() {
         if (parentNode.valueType.nodeType == NodeType.OBJECT) {
-            if (value != null) return new ObjectNode(value);
+            if (value != null) return new ObjectNode(parentNode.session, parentNode, value);
         }
         return null;
     }

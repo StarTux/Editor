@@ -3,6 +3,7 @@ package com.cavetale.editor.session;
 import com.cavetale.editor.EditorPlugin;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -13,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginDisableEvent;
 
 /**
  * Sessions manager.
@@ -27,6 +29,9 @@ public final class Sessions implements Listener {
     }
 
     public void disable() {
+        for (Session session : sessions.values()) {
+            session.reset();
+        }
         sessions.clear();
     }
 
@@ -45,5 +50,14 @@ public final class Sessions implements Listener {
                 chatCallback.accept(textComponent.content());
             });
         event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPluginDisable(PluginDisableEvent event) {
+        for (Session session : List.copyOf(sessions.values())) {
+            if (session.getOwningPlugin() == event.getPlugin()) {
+                session.reset();
+            }
+        }
     }
 }

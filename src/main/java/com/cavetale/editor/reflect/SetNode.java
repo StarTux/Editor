@@ -2,30 +2,46 @@ package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.session.Session;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 
 @Getter
 public final class SetNode implements MenuNode {
+    protected final Session session;
+    protected final MenuNode parentNode;
     protected final Set<Object> set;
     protected final VariableType variableType;
     protected final VariableType valueType;
     private List<SetItemNode> children;
 
-    public SetNode(final Set<Object> set, final VariableType variableType) {
+    public SetNode(final Session session, final @Nullable MenuNode parentNode, final Set<Object> set, final VariableType variableType) {
         if (variableType.genericTypes.size() != 1) {
             throw new IllegalStateException(variableType.toString());
         }
+        this.session = session;
+        this.parentNode = parentNode;
         this.set = set;
         this.variableType = variableType;
         this.valueType = variableType.genericTypes.get(0);
     }
 
     @Override
+    public Session getContext() {
+        return session;
+    }
+
+    @Override
     public Object getObject() {
         return set;
+    }
+
+    @Override
+    public MenuNode getParentNode() {
+        return parentNode;
     }
 
     @Override

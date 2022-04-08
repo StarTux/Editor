@@ -23,6 +23,7 @@ public final class FieldNode implements MenuItemNode {
     @Getter protected final VariableType variableType;
     private final boolean deletable;
     private final boolean canSetValue;
+    @Getter private final String description;
 
     public FieldNode(final ObjectNode parentNode, final Field field) {
         this.parentNode = parentNode;
@@ -30,7 +31,7 @@ public final class FieldNode implements MenuItemNode {
         EditMenuAdapter adapter = parentNode.object instanceof EditMenuAdapter theAdapter
             ? theAdapter
             : new EditMenuAdapter() { };
-        this.variableType = VariableType.of(field, adapter);
+        this.variableType = VariableType.of(field, adapter, parentNode);
         final int modifiers = field.getModifiers();
         EditMenuItem editMenuItem = field.getAnnotation(EditMenuItem.class);
         this.deletable = editMenuItem != null
@@ -39,6 +40,9 @@ public final class FieldNode implements MenuItemNode {
         this.canSetValue = editMenuItem != null
             ? editMenuItem.settable()
             : !Modifier.isFinal(modifiers);
+        this.description = editMenuItem != null
+            ? editMenuItem.description()
+            : "";
     }
 
     @Override
@@ -100,24 +104,24 @@ public final class FieldNode implements MenuItemNode {
             Object value = getValue();
             if (!(value instanceof Map)) return null;
             @SuppressWarnings("unchecked") Map<Object, Object> map = (Map<Object, Object>) value;
-            return new MapNode(map, variableType);
+            return new MapNode(parentNode.session, parentNode, map, variableType);
         }
         case LIST: {
             Object value = getValue();
             if (!(value instanceof List)) return null;
             @SuppressWarnings("unchecked") List<Object> list = (List<Object>) value;
-            return new ListNode(list, variableType);
+            return new ListNode(parentNode.session, parentNode, list, variableType);
         }
         case SET: {
             Object value = getValue();
             if (!(value instanceof Set)) return null;
             @SuppressWarnings("unchecked") Set<Object> set = (Set<Object>) value;
-            return new SetNode(set, variableType);
+            return new SetNode(parentNode.session, parentNode, set, variableType);
         }
         case OBJECT: {
             Object value = getValue();
             if (value == null) return null;
-            return new ObjectNode(value);
+            return new ObjectNode(parentNode.session, parentNode, value);
         }
         default: return null;
         }

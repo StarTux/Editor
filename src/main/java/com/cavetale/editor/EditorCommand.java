@@ -3,7 +3,9 @@ package com.cavetale.editor;
 import com.cavetale.core.command.AbstractCommand;
 import com.cavetale.core.command.CommandWarn;
 import com.cavetale.core.editor.EditMenuAdapter;
+import com.cavetale.core.editor.EditMenuDelegate;
 import com.cavetale.core.editor.EditMenuItem;
+import com.cavetale.core.editor.EditMenuNode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +28,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
     }
 
     protected boolean test(Player player, String[] args) {
-        Editor.open(plugin, player, new Foo(), new EditContext() { });
+        plugin.editor.open(plugin, player, new Foo(), new EditMenuDelegate() { });
         return true;
     }
 
@@ -58,7 +60,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
         Map<String, String> map = new HashMap<>();
 
         @Override
-        public List<Object> getPossibleValues(String fieldName, int valueIndex) {
+        public List<Object> getPossibleValues(EditMenuNode node, String fieldName, int valueIndex) {
             switch (fieldName) {
             case "dbl": return List.of(1.23, 4.56, 7.89);
             case "map":
@@ -70,7 +72,7 @@ public final class EditorCommand extends AbstractCommand<EditorPlugin> {
         }
 
         @Override
-        public Boolean validateValue(String fieldName, Object newValue, int valueIndex) {
+        public Boolean validateValue(EditMenuNode node, String fieldName, Object newValue, int valueIndex) {
             switch (fieldName) {
             case "x":
             case "y":

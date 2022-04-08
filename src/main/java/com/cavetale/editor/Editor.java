@@ -1,12 +1,16 @@
 package com.cavetale.editor;
 
+import com.cavetale.core.editor.EditMenuDelegate;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import lombok.RequiredArgsConstructor;
 
-public final class Editor {
-    private Editor() { }
+@RequiredArgsConstructor
+public final class Editor implements com.cavetale.core.editor.Editor {
+    private final EditorPlugin plugin;
 
-    public static void open(Plugin plugin, Player player, Object rootObject, EditContext context) {
-        EditorPlugin.instance.sessions.of(player).setup(plugin, rootObject, context).open(player);
+    @Override
+    public void open(Plugin owningPlugin, Player player, Object rootObject, EditMenuDelegate delegate) {
+        EditorPlugin.instance.sessions.of(player).setup(owningPlugin, rootObject, delegate).open(player);
     }
 }

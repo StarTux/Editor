@@ -1,6 +1,7 @@
 package com.cavetale.editor.menu;
 
 import com.cavetale.core.editor.EditMenuAdapter;
+import com.cavetale.core.editor.EditMenuNode;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Constructor;
@@ -18,19 +19,21 @@ public final class VariableType {
     public final NodeType nodeType;
     public final Class<?> objectType;
     public final List<VariableType> genericTypes;
-    public final Supplier<List<Object>> possibleValueSupplier;
-    public final Function<Object, Boolean> valueValidator;
+    private final Supplier<List<Object>> possibleValueSupplier;
+    private final Function<Object, Boolean> valueValidator;
+    private final Supplier<Object> newValueSupplier;
 
-    public static VariableType of(Field field, EditMenuAdapter adapter) {
+    public static VariableType of(Field field, EditMenuAdapter adapter, EditMenuNode node) {
         Class<?> objectType = field.getType();
         NodeType nodeType = NodeType.of(objectType);
-        List<VariableType> genericTypes = getGenericTypes(field, adapter);
+        List<VariableType> genericTypes = getGenericTypes(field, adapter, node);
         return new VariableType(nodeType, objectType, genericTypes,
-                                () -> adapter.getPossibleValues(field.getName(), 0),
-                                o -> adapter.validateValue(field.getName(), o, 0));
+                                () -> adapter.getPossibleValues(node, field.getName(), 0),
+                                o -> adapter.validateValue(node, field.getName(), o, 0),
+                                () -> adapter.createNewValue(node, field.getName(), 0));
     }
 
-    private static List<VariableType> getGenericTypes(Field field, EditMenuAdapter adapter) {
+    private static List<VariableType> getGenericTypes(Field field, EditMenuAdapter adapter, EditMenuNode node) {
         List<VariableType> result = new ArrayList<>();
         if (field.getAnnotatedType() instanceof AnnotatedParameterizedType apt) {
             int i = 0;
@@ -40,23 +43,24 @@ public final class VariableType {
                     result.add(new VariableType(NodeType.of(clazz),
                                                 clazz,
                                                 List.of(),
-                                                () -> adapter.getPossibleValues(field.getName(), index),
-                                                o -> adapter.validateValue(field.getName(), o, index)));
+                                                () -> adapter.getPossibleValues(node, field.getName(), index),
+                                                o -> adapter.validateValue(node, field.getName(), o, index),
+                                                () -> adapter.createNewValue(node, field.getName(), 0)));
                 }
             }
         }
         return List.copyOf(result);
     }
 
-    protected static String getClassName(Class<?> clazz) {
+    public static String classNameOf(Class<?> clazz) {
         Class<?> enclosing = clazz.getEnclosingClass();
         return enclosing != null
-            ? getClassName(enclosing) + "." + clazz.getSimpleName()
+            ? classNameOf(enclosing) + "." + clazz.getSimpleName()
             : clazz.getSimpleName();
     }
 
     public String getClassName() {
-        return getClassName(objectType);
+        return classNameOf(objectType);
     }
 
     @Override
@@ -117,6 +121,10 @@ public final class VariableType {
         }
     }
 
+    public List<Object> getPossibleValues() {
+        return possibleValueSupplier.get();
+    }
+
     public boolean canHold(Object object) {
         // Adapter
         List<Object> possibleValues = possibleValueSupplier.get();
@@ -149,5 +157,9 @@ public final class VariableType {
         }
         default: throw new IllegalStateException("variableType=" + this);
         }
+    }
+
+    public Object createNewValue() {
+        return newValueSupplier.get();
     }
 }

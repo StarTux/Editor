@@ -46,19 +46,19 @@ public enum NodeType {
          null,
          Class::isEnum,
          null),
-    MAP(Category.MENU, Mytems.FOLDER,
+    MAP(Category.CONTAINER, Mytems.FOLDER,
         () -> new HashMap<Object, Object>(),
         c -> Map.class.isAssignableFrom(c),
         null),
-    LIST(Category.MENU, Mytems.FOLDER,
+    LIST(Category.CONTAINER, Mytems.FOLDER,
          () -> new ArrayList<>(),
          c -> List.class.isAssignableFrom(c),
          null),
-    SET(Category.MENU, Mytems.FOLDER,
+    SET(Category.CONTAINER, Mytems.FOLDER,
         () -> new HashSet<>(),
         c -> Set.class.isAssignableFrom(c),
         null),
-    OBJECT(Category.MENU, Mytems.FOLDER,
+    OBJECT(Category.OBJECT, Mytems.FOLDER,
            null,
            c -> true,
            null);
@@ -73,11 +73,12 @@ public enum NodeType {
     private enum Category {
         NUMBER,
         PRIMITIVE,
-        MENU;
+        CONTAINER,
+        OBJECT;
     }
 
     public boolean isMenu() {
-        return category == Category.MENU;
+        return category == Category.CONTAINER || category == Category.OBJECT;
     }
 
     public boolean isPrimitive() {
@@ -86,6 +87,10 @@ public enum NodeType {
 
     public boolean isNumber() {
         return category == Category.NUMBER;
+    }
+
+    public boolean isContainer() {
+        return category == Category.CONTAINER;
     }
 
     public static NodeType of(Class<?> type) {

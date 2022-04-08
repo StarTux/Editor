@@ -2,15 +2,17 @@ package com.cavetale.editor.session;
 
 import com.cavetale.core.editor.EditMenuAdapter;
 import com.cavetale.core.editor.EditMenuButton;
+import com.cavetale.core.editor.EditMenuContext;
+import com.cavetale.core.editor.EditMenuDelegate;
 import com.cavetale.core.font.GuiOverlay;
 import com.cavetale.core.font.Unicode;
-import com.cavetale.editor.EditContext;
 import com.cavetale.editor.gui.Gui;
 import com.cavetale.editor.menu.MenuException;
 import com.cavetale.editor.menu.MenuItemNode;
 import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.NodeType;
 import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.reflect.FieldNode;
 import com.cavetale.editor.reflect.ListNode;
 import com.cavetale.editor.reflect.MapNode;
 import com.cavetale.editor.reflect.ObjectNode;
@@ -18,12 +20,14 @@ import com.cavetale.editor.reflect.SetNode;
 import com.cavetale.editor.util.Icon;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.util.Items;
+import com.cavetale.mytems.util.Text;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -48,30 +52,60 @@ import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.format.TextDecoration.*;
 
 @RequiredArgsConstructor
-public final class Session {
+public final class Session implements EditMenuContext {
     private final Sessions sessions;
     private final UUID uuid;
-    private Plugin owningPlugin;
-    private Object rootObject;
-    private EditContext editContext;
+    /**
+     * @Overrides EditMenuContext
+     */
+    @Getter private Plugin owningPlugin;
+    /**
+     * @Overrides EditMenuContext
+     */
+    @Getter private Object rootObject;
+    private EditMenuDelegate delegate;
     private final List<PathNode> path = new ArrayList<>();
     private final PathNode rootPath = new PathNode("", 0);
     protected Consumer<String> chatCallback = null;
     private final List<Integer> selection = new ArrayList<>();
     private final List<Object> clipboard = new ArrayList<>();
 
-    public Session setup(final Plugin thePlugin, final Object theRootObject, final EditContext theEditContext) {
+    public Session setup(final Plugin thePlugin, final Object theRootObject, final EditMenuDelegate theDelegate) {
+        reset();
         this.owningPlugin = thePlugin;
         this.rootObject = theRootObject;
-        this.editContext = theEditContext;
-        this.path.clear();
-        this.rootPath.page = 0;
-        this.selection.clear();
+        this.delegate = theDelegate;
         return this;
     }
 
+    public void reset() {
+        owningPlugin = null;
+        rootObject = null;
+        delegate = null;
+        chatCallback = null;
+        path.clear();
+        rootPath.page = 0;
+        selection.clear();
+        clipboard.clear();
+        Player p = getPlayer();
+        if (p != null) {
+            Gui gui = Gui.of(p);
+            if (gui != null) p.closeInventory();
+        }
+    }
+
+    @Override
     public Player getPlayer() {
         return Bukkit.getPlayer(uuid);
+    }
+
+    @Override
+    public List<String> getCurrentPath() {
+        List<String> result = new ArrayList<>(path.size());
+        for (PathNode it : path) {
+            result.add(it.name);
+        }
+        return result;
     }
 
     /**
@@ -80,7 +114,7 @@ public final class Session {
      * anywhere.
      */
     private MenuNode findPath() {
-        MenuNode menuNode = new ObjectNode(rootObject);
+        MenuNode menuNode = new ObjectNode(this, (MenuNode) null, rootObject);
         List<PathNode> pathCopy = List.copyOf(path);
         path.clear();
         for (PathNode pathIt : pathCopy) {
@@ -124,9 +158,10 @@ public final class Session {
         final int pageCount = (children.size() - 1) / pageSize + 1;
         final int pageIndex = Math.min(pageCount - 1, pathNode.page);
         pathNode.page = pageIndex;
-        Component title = join(noSeparators(), new Component[] {
-                text(pageCount > 1 ? "" + (pageIndex + 1) + "/" + pageCount + " " : "", GRAY),
-                text("Editor ", BLUE),
+        Component title = join(separator(space()), new Component[] {
+                text((pageCount > 1
+                      ? "" + (pageIndex + 1) + "/" + pageCount
+                      : ""), GRAY),
                 text(getPathString(), WHITE),
             });
         Gui gui = new Gui(owningPlugin).size(inventorySize);
@@ -151,22 +186,25 @@ public final class Session {
                 });
         }
         List<Click> menuClicks = new ArrayList<>();
-        menuClicks.add(new Click(() -> {
-                    ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
-                    diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
-                    return Items.text(diskItem, List.of(text("SAVE", GREEN)));
-        }, click -> {
-                    if (click.isLeftClick()) {
-                        try {
-                            editContext.save();
-                            player.sendMessage(text("Saved to disk!", GREEN));
-                            click(player);
-                        } catch (MenuException me) {
-                            player.sendMessage(text("Error saving: " + me.getMessage(), RED));
-                            fail(player);
+        Runnable saveFunction = delegate.getSaveFunction(menuNode);
+        if (saveFunction != null) {
+            menuClicks.add(new Click(() -> {
+                        ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
+                        diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
+                        return Items.text(diskItem, List.of(text("SAVE", GREEN)));
+            }, click -> {
+                        if (click.isLeftClick()) {
+                            try {
+                                saveFunction.run();
+                                player.sendMessage(text("Saved to disk!", GREEN));
+                                click(player);
+                            } catch (MenuException me) {
+                                player.sendMessage(text("Error saving: " + me.getMessage(), RED));
+                                fail(player);
+                            }
                         }
-                    }
-        }));
+            }));
+        }
         if (menuNode instanceof ListNode listNode) {
             if (selection.size() <= 1) {
                 final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
@@ -175,7 +213,7 @@ public final class Session {
                 }, click -> {
                             if (click.isLeftClick()) {
                                 try {
-                                    fetchNewValue(player, listNode.getValueType(), null, newValue -> {
+                                    fetchNewValue(player, listNode, listNode.getValueType(), null, newValue -> {
                                             listNode.getList().add(listIndex, newValue);
                                             open(player);
                                             click(player);
@@ -233,9 +271,9 @@ public final class Session {
             }, click -> {
                         if (click.isLeftClick()) {
                             try {
-                                fetchNewValue(player, mapNode.getKeyType(), null, newKey -> {
+                                fetchNewValue(player, mapNode, mapNode.getKeyType(), null, newKey -> {
                                         try {
-                                            fetchNewValue(player, mapNode.getValueType(), null, newValue -> {
+                                            fetchNewValue(player, mapNode, mapNode.getValueType(), null, newValue -> {
                                                     mapNode.getMap().put(newKey, newValue);
                                                     player.sendMessage(text("Added key value pair: " + newKey + ", " + newValue, GREEN));
                                                     open(player);
@@ -269,7 +307,7 @@ public final class Session {
             }, click -> {
                         if (click.isLeftClick()) {
                             try {
-                                fetchNewValue(player, setNode.getValueType(), null, newValue -> {
+                                fetchNewValue(player, setNode, setNode.getValueType(), null, newValue -> {
                                         setNode.getSet().add(newValue);
                                         open(player);
                                         click(player);
@@ -360,7 +398,7 @@ public final class Session {
             }));
         }
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
-            for (EditMenuButton button : adapter.getEditMenuButtons()) {
+            for (EditMenuButton button : adapter.getEditMenuButtons(menuNode)) {
                 menuClicks.add(new Click(() -> {
                             return Items.text(button.getMenuIcon(), button.getTooltip());
                 }, click -> {
@@ -405,7 +443,12 @@ public final class Session {
             final VariableType variableType = node.getVariableType();
             final Object oldValue = node.getValue();
             List<Component> tooltip = new ArrayList<>();
-            tooltip.addAll(node.getTooltip());
+            tooltip.addAll(Icon.tooltip(menuNode, node));
+            if (node instanceof FieldNode fieldNode) {
+                if (!fieldNode.getDescription().isEmpty()) {
+                    tooltip.addAll(Text.wrapLore(fieldNode.getDescription()));
+                }
+            }
             if (variableType.nodeType.isMenu()) {
                 tooltip.add(join(separator(space()),
                                  text(Unicode.tiny("left"), GREEN),
@@ -442,7 +485,7 @@ public final class Session {
             tooltip.add(join(separator(space()),
                              text(Unicode.tiny("shift-left"), GREEN),
                              text("(Un)select", GRAY)));
-            ItemStack icon = Items.text(node.getIcon(), tooltip);
+            ItemStack icon = Items.text(Icon.of(menuNode, oldValue), tooltip);
             gui.setItem(guiIndex, icon, click -> {
                     if (click.isLeftClick() && click.isShiftClick()) {
                         if (selection.contains(childIndex)) {
@@ -460,7 +503,7 @@ public final class Session {
                             open(player);
                             click(player);
                         } else {
-                            player.sendMessage(join(separator(newline()), node.getTooltip()));
+                            player.sendMessage(join(separator(newline()), Icon.tooltip(menuNode, node)));
                             click(player);
                         }
                     } else if (canSetValue && click.isRightClick()) {
@@ -472,7 +515,7 @@ public final class Session {
                             open(player);
                         } else {
                             try {
-                                fetchNewValue(player, variableType, oldValue,
+                                fetchNewValue(player, menuNode, variableType, oldValue,
                                               newValue -> {
                                                   if (newValue != null) {
                                                       node.setValue(newValue);
@@ -518,15 +561,29 @@ public final class Session {
         return true;
     }
 
-    public void fetchNewValue(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
-        List<Object> possibleValues = variableType.possibleValueSupplier.get();
-        if (possibleValues != null) {
-            fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, 0);
-        } else if (variableType.nodeType == NodeType.ENUM) {
+    public void fetchNewValue(Player player,
+                              MenuNode menuNode,
+                              VariableType variableType,
+                              Object oldValue,
+                              Consumer<Object> valueCallback,
+                              Runnable failCallback) {
+        if (!variableType.nodeType.isContainer()) {
+            Object newValue = variableType.createNewValue();
+            if (newValue != null) {
+                valueCallback.accept(newValue);
+                return;
+            }
+            List<Object> possibleValues = variableType.getPossibleValues();
+            if (possibleValues != null) {
+                fetchPossibleValueFromMenu(player, menuNode, variableType, possibleValues, oldValue, valueCallback, failCallback, 0);
+                return;
+            }
+        }
+        if (variableType.nodeType == NodeType.ENUM) {
             List<Object> enumList = List.of(variableType.objectType.getEnumConstants());
-            fetchPossibleValueFromMenu(player, variableType, enumList, oldValue, valueCallback, failCallback, 0);
+            fetchPossibleValueFromMenu(player, menuNode, variableType, enumList, oldValue, valueCallback, failCallback, 0);
         } else if (variableType.canParseValue()) {
-            fetchNewValueFromChat(player, variableType, oldValue, valueCallback, failCallback);
+            fetchNewValueFromChat(player, menuNode, variableType, oldValue, valueCallback, failCallback);
         } else if (variableType.canCreateNewInstance()) {
             valueCallback.accept(variableType.createNewInstance());
         } else {
@@ -538,7 +595,12 @@ public final class Session {
      * Fetch new value from chat.
      * VariabelType#canParseValue() must be true!
      */
-    public void fetchNewValueFromChat(Player player, VariableType variableType, Object oldValue, Consumer<Object> valueCallback, Runnable failCallback) {
+    public void fetchNewValueFromChat(Player player,
+                                      MenuNode menuNode,
+                                      VariableType variableType,
+                                      Object oldValue,
+                                      Consumer<Object> valueCallback,
+                                      Runnable failCallback) {
         chatCallback = str -> {
             final Object newValue;
             try {
@@ -568,6 +630,7 @@ public final class Session {
     }
 
     public void fetchPossibleValueFromMenu(Player player,
+                                           MenuNode menuNode,
                                            VariableType variableType,
                                            List<Object> possibleValues,
                                            Object oldValue,
@@ -590,13 +653,13 @@ public final class Session {
             .layer(GuiOverlay.TOP_BAR, BLACK);
         if (pageIndex > 0) {
             gui.setItem(0, Mytems.ARROW_LEFT.createItemStack(), click -> {
-                    fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, page - 1);
+                    fetchPossibleValueFromMenu(player, menuNode, variableType, possibleValues, oldValue, valueCallback, failCallback, page - 1);
                     click(player);
                 });
         }
         if (pageIndex < pageCount - 1) {
             gui.setItem(8, Mytems.ARROW_RIGHT.createItemStack(), click -> {
-                    fetchPossibleValueFromMenu(player, variableType, possibleValues, oldValue, valueCallback, failCallback, page + 1);
+                    fetchPossibleValueFromMenu(player, menuNode, variableType, possibleValues, oldValue, valueCallback, failCallback, page + 1);
                     click(player);
                 });
         }
@@ -608,7 +671,7 @@ public final class Session {
             if (oldValue == it) {
                 titleBuilder.highlightSlot(guiIndex, DARK_BLUE);
             }
-            ItemStack icon = Icon.of(it);
+            ItemStack icon = Icon.of(menuNode, it);
             List<Component> tooltip;
             tooltip = List.of(text(it.toString(), WHITE),
                               text(variableType.getClassName(), DARK_GRAY, ITALIC));

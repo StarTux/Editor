@@ -1,19 +1,33 @@
 package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
+import com.cavetale.editor.session.Session;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 
+
 @RequiredArgsConstructor
 public final class ObjectNode implements MenuNode {
+    protected final Session session;
+    protected final MenuNode parentNode;
     protected final Object object;
     private List<FieldNode> children = null;
 
     @Override
+    public Session getContext() {
+        return session;
+    }
+
+    @Override
     public Object getObject() {
         return object;
+    }
+
+    @Override
+    public MenuNode getParentNode() {
+        return parentNode;
     }
 
     @Override

@@ -1,12 +1,23 @@
 package com.cavetale.editor.menu;
 
+import com.cavetale.core.editor.EditMenuContext;
+import com.cavetale.core.editor.EditMenuNode;
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A node which can be turned into a navigable GUI menu.
  */
-public interface MenuNode {
-    Object getObject();
+public interface MenuNode extends EditMenuNode {
+    @Override
+    @NotNull EditMenuContext getContext();
+
+    @Override
+    @NotNull Object getObject();
+
+    @Override
+    @Nullable MenuNode getParentNode();
 
     List<? extends MenuItemNode> getChildren();
 

@@ -2,29 +2,45 @@ package com.cavetale.editor.reflect;
 
 import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.VariableType;
+import com.cavetale.editor.session.Session;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
 
 @Getter
 public final class ListNode implements MenuNode {
+    protected final Session session;
+    protected final MenuNode parentNode;
     protected final List<Object> list;
     protected final VariableType variableType;
     protected final VariableType valueType;
     private List<ListItemNode> children;
 
-    public ListNode(final List<Object> list, final VariableType variableType) {
+    public ListNode(final Session session, final @Nullable MenuNode parentNode, final List<Object> list, final VariableType variableType) {
         if (variableType.genericTypes.size() != 1) {
             throw new IllegalStateException(variableType.toString());
         }
+        this.session = session;
+        this.parentNode = parentNode;
         this.list = list;
         this.variableType = variableType;
         this.valueType = variableType.genericTypes.get(0);
     }
 
     @Override
+    public Session getContext() {
+        return session;
+    }
+
+    @Override
     public Object getObject() {
         return list;
+    }
+
+    @Override
+    public MenuNode getParentNode() {
+        return parentNode;
     }
 
     @Override
@@ -51,7 +67,6 @@ public final class ListNode implements MenuNode {
             }
             selection.clear();
         }
-        System.out.println("cutCopy " + list + " " + selection + " " + doRemove + " => " + result);
         return result;
     }
 
