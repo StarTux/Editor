@@ -1,6 +1,7 @@
 package com.cavetale.editor.menu;
 
 import com.cavetale.core.editor.EditMenuAdapter;
+import com.cavetale.core.editor.EditMenuException;
 import com.cavetale.core.editor.EditMenuNode;
 import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
@@ -110,7 +111,7 @@ public final class VariableType {
                 constructor.setAccessible(true);
                 return constructor.newInstance();
             } catch (NoSuchMethodException nsme) {
-                throw new MenuException("No default constructor found");
+                throw new EditMenuException("No default constructor found");
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }

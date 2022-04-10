@@ -23,6 +23,7 @@ public final class FieldNode implements MenuItemNode {
     @Getter protected final VariableType variableType;
     private final boolean deletable;
     private final boolean canSetValue;
+    @Getter private final boolean hidden;
     @Getter private final String description;
 
     public FieldNode(final ObjectNode parentNode, final Field field) {
@@ -43,6 +44,9 @@ public final class FieldNode implements MenuItemNode {
         this.description = editMenuItem != null
             ? editMenuItem.description()
             : "";
+        this.hidden = editMenuItem != null
+            ? editMenuItem.hidden()
+            : false;
     }
 
     @Override

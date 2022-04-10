@@ -45,7 +45,10 @@ public final class ObjectNode implements MenuNode {
         Class<?> class2 = clazz.getSuperclass();
         if (class2 != null) computeChildrenRecursive(class2);
         for (Field field : clazz.getDeclaredFields()) {
-            children.add(new FieldNode(this, field));
+            FieldNode fieldNode = new FieldNode(this, field);
+            if (!fieldNode.isHidden()) {
+                children.add(fieldNode);
+            }
         }
     }
 

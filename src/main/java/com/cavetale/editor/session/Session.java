@@ -4,10 +4,10 @@ import com.cavetale.core.editor.EditMenuAdapter;
 import com.cavetale.core.editor.EditMenuButton;
 import com.cavetale.core.editor.EditMenuContext;
 import com.cavetale.core.editor.EditMenuDelegate;
+import com.cavetale.core.editor.EditMenuException;
 import com.cavetale.core.font.GuiOverlay;
 import com.cavetale.core.font.Unicode;
 import com.cavetale.editor.gui.Gui;
-import com.cavetale.editor.menu.MenuException;
 import com.cavetale.editor.menu.MenuItemNode;
 import com.cavetale.editor.menu.MenuNode;
 import com.cavetale.editor.menu.NodeType;
@@ -198,7 +198,7 @@ public final class Session implements EditMenuContext {
                                 saveFunction.run();
                                 player.sendMessage(text("Saved to disk!", GREEN));
                                 click(player);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text("Error saving: " + me.getMessage(), RED));
                                 fail(player);
                             }
@@ -223,7 +223,7 @@ public final class Session implements EditMenuContext {
                                             fail(player);
                                         });
                                     click(player);
-                                } catch (MenuException me) {
+                                } catch (EditMenuException me) {
                                     player.sendMessage(text(me.getMessage(), RED));
                                     fail(player);
                                 }
@@ -283,7 +283,7 @@ public final class Session implements EditMenuContext {
                                                     open(player);
                                                     fail(player);
                                                 });
-                                        } catch (MenuException me) {
+                                        } catch (EditMenuException me) {
                                             player.sendMessage(text(me.getMessage(), RED));
                                             fail(player);
                                             open(player);
@@ -294,7 +294,7 @@ public final class Session implements EditMenuContext {
                                         fail(player);
                                     });
                                 click(player);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text(me.getMessage(), RED));
                                 fail(player);
                             }
@@ -317,7 +317,7 @@ public final class Session implements EditMenuContext {
                                         fail(player);
                                     });
                                 click(player);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text(me.getMessage(), RED));
                                 fail(player);
                             }
@@ -332,7 +332,7 @@ public final class Session implements EditMenuContext {
                             List<Object> newClipboard;
                             try {
                                 newClipboard = menuNode.copy(selection);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text("Copy failed: " + me.getMessage(), RED));
                                 fail(player);
                                 return;
@@ -357,7 +357,7 @@ public final class Session implements EditMenuContext {
                             List<Object> newClipboard;
                             try {
                                 newClipboard = menuNode.cut(selection);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text("Cut failed: " + me.getMessage(), RED));
                                 fail(player);
                                 return;
@@ -386,7 +386,7 @@ public final class Session implements EditMenuContext {
                             }
                             try {
                                 menuNode.paste(clipboard, selection);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text("Paste failed: " + me.getMessage()));
                                 fail(player);
                                 return;
@@ -404,7 +404,7 @@ public final class Session implements EditMenuContext {
                 }, click -> {
                             try {
                                 button.onClick(player, click);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text("Error: " + me.getMessage()));
                                 return;
                             }
@@ -529,7 +529,7 @@ public final class Session implements EditMenuContext {
                                                   fail(player);
                                               });
                                 click(player);
-                            } catch (MenuException me) {
+                            } catch (EditMenuException me) {
                                 player.sendMessage(text(me.getMessage(), RED));
                                 fail(player);
                             }
@@ -587,7 +587,7 @@ public final class Session implements EditMenuContext {
         } else if (variableType.canCreateNewInstance()) {
             valueCallback.accept(variableType.createNewInstance());
         } else {
-            throw new MenuException("Cannot create new value: " + variableType);
+            throw new EditMenuException("Cannot create new value: " + variableType);
         }
     }
 
