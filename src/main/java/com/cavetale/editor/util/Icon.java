@@ -7,6 +7,7 @@ import com.cavetale.editor.menu.NodeType;
 import com.cavetale.editor.menu.VariableType;
 import com.cavetale.mytems.Mytems;
 import com.cavetale.mytems.item.font.Glyph;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -62,11 +63,8 @@ public final class Icon {
 
 
     public static List<Component> tooltip(MenuNode menu, MenuItemNode node) {
+        List<Component> result = new ArrayList<>();
         Object o = node.getValue();
-        if (o instanceof EditMenuAdapter adapter) {
-            List<Component> custom = adapter.getTooltip(menu);
-            if (custom != null) return custom;
-        }
         Component value;
         VariableType variableType = node.getVariableType();
         if (variableType.nodeType.isPrimitive()) {
@@ -91,13 +89,19 @@ public final class Icon {
                 ? text(VariableType.classNameOf(o.getClass()), WHITE)
                 : text("null", DARK_PURPLE, ITALIC);
         }
-        Component line2;
-        if (variableType.nodeType == NodeType.OBJECT || variableType.nodeType == NodeType.ENUM) {
-            line2 = text(variableType.nodeType.humanName + " " + variableType.getClassName(), DARK_GRAY, ITALIC);
-        } else {
-            line2 = text(variableType.nodeType.humanName, DARK_GRAY, ITALIC);
+        result.add(join(noSeparators(), text(node.getKey(), GRAY), text(": ", DARK_GRAY), value));
+        if (o instanceof EditMenuAdapter adapter) {
+            List<Component> custom = adapter.getTooltip(menu);
+            if (custom != null) {
+                result.addAll(custom);
+            }
+            return result;
         }
-        return List.of(join(noSeparators(), text(node.getKey(), GRAY), text(": ", DARK_GRAY), value),
-                       line2);
+        if (variableType.nodeType == NodeType.OBJECT || variableType.nodeType == NodeType.ENUM) {
+            result.add(text(variableType.nodeType.humanName + " " + variableType.getClassName(), DARK_GRAY, ITALIC));
+        } else {
+            result.add(text(variableType.nodeType.humanName, DARK_GRAY, ITALIC));
+        }
+        return result;
     }
 }
