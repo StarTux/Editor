@@ -27,5 +27,6 @@ public final class EditorPlugin extends JavaPlugin {
     public void onDisable() {
         sessions.disable();
         Gui.disable();
+        editor.unregister();
     }
 }
