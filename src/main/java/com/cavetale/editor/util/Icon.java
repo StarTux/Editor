@@ -49,7 +49,7 @@ public final class Icon {
         if (o instanceof Enum || o instanceof String) {
             return firstLetter(o);
         }
-        return NodeType.of(o.getClass()).mytems.createIcon();
+        return NodeType.of(o.getClass()).createIcon();
     }
 
     public static ItemStack firstLetter(Object o) {
