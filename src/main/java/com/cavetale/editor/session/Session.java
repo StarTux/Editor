@@ -196,7 +196,6 @@ public final class Session implements EditMenuContext {
                         if (click.isLeftClick()) {
                             try {
                                 saveFunction.run();
-                                player.sendMessage(text("Saved to disk!", GREEN));
                                 click(player);
                             } catch (EditMenuException me) {
                                 player.sendMessage(text("Error saving: " + me.getMessage(), RED));
