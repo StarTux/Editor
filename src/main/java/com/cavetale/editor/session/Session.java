@@ -518,7 +518,8 @@ public final class Session implements EditMenuContext {
                                               newValue -> {
                                                   if (newValue != null) {
                                                       node.setValue(newValue);
-                                                      player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
+                                                      player.sendMessage(text("Updated " + node.getKey() + " to "
+                                                                              + variableType.nodeType.stringify(newValue), YELLOW));
                                                   }
                                                   open(player);
                                                   click(player);
@@ -616,11 +617,12 @@ public final class Session implements EditMenuContext {
                 valueCallback.accept(newValue);
             }
         };
+        String oldValueString = variableType.nodeType.stringify(oldValue);
         player.sendMessage(join(separator(space()), new Component[] {
                     text("Type the new value in chat", GREEN)
-                    .insertion("" + oldValue)
-                    .clickEvent(suggestCommand("" + oldValue))
-                    .hoverEvent(showText(text("" + oldValue, GRAY))),
+                    .insertion(oldValueString)
+                    .clickEvent(suggestCommand(oldValueString))
+                    .hoverEvent(showText(text(oldValueString, GRAY))),
                     text("[CANCEL]", RED)
                     .clickEvent(runCommand("/editor reopen"))
                     .hoverEvent(showText(text("/editor reopen", RED))),

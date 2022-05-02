@@ -69,7 +69,7 @@ public final class Icon {
         VariableType variableType = node.getVariableType();
         if (variableType.nodeType.isPrimitive()) {
             value = o != null
-                ? text(o.toString(), WHITE)
+                ? text(variableType.nodeType.stringify(o), WHITE)
                 : text("null", DARK_PURPLE, ITALIC);
         } else if (variableType.nodeType.isContainer()) {
             int size = 0;
