@@ -46,9 +46,6 @@ public final class Icon {
             ItemStack result = Bukkit.getItemFactory().getSpawnEgg(entityType);
             if (result != null) return result;
         }
-        if (o instanceof Enum || o instanceof String) {
-            return firstLetter(o);
-        }
         return NodeType.of(o.getClass()).createIcon();
     }
 
