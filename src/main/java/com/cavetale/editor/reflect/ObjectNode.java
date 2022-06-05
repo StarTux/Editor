@@ -86,7 +86,7 @@ public final class ObjectNode implements MenuNode {
         int size = clipboard.size();
         for (int i = 0; i < size; i += 1) {
             Object it = clipboard.get(i);
-            FieldNode node = getChildren().get(i);
+            FieldNode node = getChildren().get(selection.get(i));
             if (!node.canSetValue() || !node.variableType.canHold(it)) return false;
         }
         return true;
@@ -97,7 +97,7 @@ public final class ObjectNode implements MenuNode {
         int size = clipboard.size();
         for (int i = 0; i < size; i += 1) {
             Object it = clipboard.get(i);
-            FieldNode node = getChildren().get(i);
+            FieldNode node = getChildren().get(selection.get(i));
             node.setValue(it);
         }
     }
