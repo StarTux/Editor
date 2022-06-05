@@ -80,6 +80,7 @@ public enum NodeType {
          Date.class::isAssignableFrom,
          o -> o instanceof Date date ? dateFormat().format(date) : Objects.toString(o),
          s -> {
+             if (s.equalsIgnoreCase("now")) return new Date();
              try {
                  return dateFormat().parse(s);
              } catch (ParseException pe) {
