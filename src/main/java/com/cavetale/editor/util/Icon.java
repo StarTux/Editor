@@ -43,8 +43,8 @@ public final class Icon {
             return mytems.createIcon();
         }
         if (o instanceof EntityType entityType && entityType != EntityType.UNKNOWN) {
-            ItemStack result = Bukkit.getItemFactory().getSpawnEgg(entityType);
-            if (result != null) return result;
+            final Material material = Bukkit.getItemFactory().getSpawnEgg(entityType);
+            if (material != null) return new ItemStack(material);
         }
         return NodeType.of(o.getClass()).createIcon();
     }

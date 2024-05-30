@@ -19,7 +19,6 @@ import com.cavetale.editor.reflect.ObjectNode;
 import com.cavetale.editor.reflect.SetNode;
 import com.cavetale.editor.util.Icon;
 import com.cavetale.mytems.Mytems;
-import com.cavetale.mytems.util.Items;
 import com.cavetale.mytems.util.Text;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +38,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import static com.cavetale.mytems.util.Items.tooltip;
 import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.newline;
 import static net.kyori.adventure.text.Component.space;
@@ -145,7 +145,7 @@ public final class Session implements EditMenuContext {
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, SoundCategory.MASTER, 1.0f, 0.5f);
     }
 
-    private static final record Click(Supplier<ItemStack> icon, Consumer<ClickType> click) { }
+    private record Click(Supplier<ItemStack> icon, Consumer<ClickType> click) { }
 
     public Gui open(Player player) {
         if (rootObject == null) return null;
@@ -191,7 +191,7 @@ public final class Session implements EditMenuContext {
             menuClicks.add(new Click(() -> {
                         ItemStack diskItem = Mytems.FLOPPY_DISK.createItemStack();
                         diskItem.editMeta(meta -> meta.addItemFlags(ItemFlag.values()));
-                        return Items.text(diskItem, List.of(text("SAVE", GREEN)));
+                        return tooltip(diskItem, List.of(text("SAVE", GREEN)));
             }, click -> {
                         if (click.isLeftClick()) {
                             try {
@@ -208,7 +208,7 @@ public final class Session implements EditMenuContext {
             if (selection.size() <= 1) {
                 final int listIndex = selection.isEmpty() ? listNode.getList().size() : selection.get(0);
                 menuClicks.add(new Click(() -> {
-                            return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+                            return tooltip(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
                 }, click -> {
                             if (click.isLeftClick()) {
                                 try {
@@ -232,7 +232,7 @@ public final class Session implements EditMenuContext {
             if (isSelectionConsecutive()) {
                 menuClicks.addAll(List.of(new Click[] {
                             new Click(() -> {
-                                    return Items.text(Mytems.ARROW_DOWN.createIcon(), List.of(text("MOVE DOWN", GREEN)));
+                                    return tooltip(Mytems.ARROW_DOWN.createIcon(), List.of(text("MOVE DOWN", GREEN)));
                             }, click -> {
                                     if (click.isLeftClick()) {
                                         List<Object> values = new ArrayList<>(selection.size());
@@ -247,7 +247,7 @@ public final class Session implements EditMenuContext {
                                     }
                             }),
                             new Click(() -> {
-                                    return Items.text(Mytems.ARROW_UP.createIcon(), List.of(text("MOVE UP", GREEN)));
+                                    return tooltip(Mytems.ARROW_UP.createIcon(), List.of(text("MOVE UP", GREEN)));
                             }, click -> {
                                     if (click.isLeftClick()) {
                                         List<Object> values = new ArrayList<>(selection.size());
@@ -266,7 +266,7 @@ public final class Session implements EditMenuContext {
         }
         if (menuNode instanceof MapNode mapNode) {
             menuClicks.add(new Click(() -> {
-                        return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+                        return tooltip(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
             }, click -> {
                         if (click.isLeftClick()) {
                             try {
@@ -302,7 +302,7 @@ public final class Session implements EditMenuContext {
         }
         if (menuNode instanceof SetNode setNode) {
             menuClicks.add(new Click(() -> {
-                        return Items.text(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
+                        return tooltip(Mytems.PLUS_BUTTON.createIcon(), List.of(text("ADD ITEM", GREEN)));
             }, click -> {
                         if (click.isLeftClick()) {
                             try {
@@ -325,7 +325,7 @@ public final class Session implements EditMenuContext {
         }
         if (!selection.isEmpty()) {
             menuClicks.add(new Click(() -> {
-                        return Items.text(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN)));
+                        return tooltip(Mytems.MAGNET.createIcon(), List.of(text("COPY", GREEN)));
             }, click -> {
                         if (click.isLeftClick()) {
                             List<Object> newClipboard;
@@ -350,7 +350,7 @@ public final class Session implements EditMenuContext {
         }
         if (!selection.isEmpty() && menuNode.canCut(selection)) {
             menuClicks.add(new Click(() -> {
-                        return Items.text(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW)));
+                        return tooltip(new ItemStack(Material.SHEARS), List.of(text("CUT", YELLOW)));
             }, click -> {
                         if (click.isLeftClick()) {
                             List<Object> newClipboard;
@@ -375,7 +375,7 @@ public final class Session implements EditMenuContext {
         }
         if (!clipboard.isEmpty() && menuNode.canPaste(clipboard, selection)) {
             menuClicks.add(new Click(() -> {
-                        return Items.text(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE)));
+                        return tooltip(Mytems.WHITE_PAINTBRUSH.createItemStack(), List.of(text("PASTE", WHITE)));
             }, click -> {
                         if (click.isLeftClick()) {
                             if (clipboard.isEmpty()) {
@@ -399,7 +399,7 @@ public final class Session implements EditMenuContext {
         if (menuNode.getObject() instanceof EditMenuAdapter adapter) {
             for (EditMenuButton button : adapter.getEditMenuButtons(menuNode)) {
                 menuClicks.add(new Click(() -> {
-                            return Items.text(button.getMenuIcon(), button.getTooltip());
+                            return tooltip(button.getMenuIcon(), button.getTooltip());
                 }, click -> {
                             try {
                                 button.onClick(player, click);
@@ -484,7 +484,7 @@ public final class Session implements EditMenuContext {
             tooltip.add(join(separator(space()),
                              text(Unicode.tiny("shift-left"), GREEN),
                              text("(Un)select", GRAY)));
-            ItemStack icon = Items.text(Icon.of(menuNode, oldValue), tooltip);
+            ItemStack icon = tooltip(Icon.of(menuNode, oldValue), tooltip);
             gui.setItem(guiIndex, icon, click -> {
                     if (click.isLeftClick() && click.isShiftClick()) {
                         if (selection.contains(childIndex)) {
@@ -507,7 +507,7 @@ public final class Session implements EditMenuContext {
                         }
                     } else if (canSetValue && click.isRightClick()) {
                         if (variableType.nodeType == NodeType.BOOLEAN) {
-                            boolean newValue = oldValue == Boolean.TRUE ? false : true;
+                            final boolean newValue = oldValue != Boolean.TRUE;
                             node.setValue(newValue);
                             player.sendMessage(text("Updated " + node.getKey() + " to " + newValue, YELLOW));
                             click(player);
@@ -676,7 +676,7 @@ public final class Session implements EditMenuContext {
             List<Component> tooltip;
             tooltip = List.of(text(it.toString(), WHITE),
                               text(variableType.getClassName(), DARK_GRAY, ITALIC));
-            gui.setItem(guiIndex, Items.text(icon, tooltip), click -> {
+            gui.setItem(guiIndex, tooltip(icon, tooltip), click -> {
                     if (click.isLeftClick()) {
                         valueCallback.accept(it);
                         click(player);
